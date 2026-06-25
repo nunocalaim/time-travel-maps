@@ -484,8 +484,11 @@ fieldset label {
     top: var(--export-map-top);
     width: var(--export-map-width);
     height: var(--export-map-height);
-    transform: scale(var(--export-scale-x), var(--export-scale-y));
-    transform-origin: top left;
+  }
+
+  body.print-crop .map-panel {
+    width: var(--export-page-width);
+    height: var(--export-page-height);
   }
 
   .control-panel {

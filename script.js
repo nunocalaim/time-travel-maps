@@ -43,6 +43,7 @@ const mapStyles = {
 const form = document.querySelector("#location-form");
 const input = document.querySelector("#location-input");
 const orsApiKeyInput = document.querySelector("#ors-api-key");
+const fetchRealDataButton = document.querySelector("#fetch-real-data");
 const clearApiKeyButton = document.querySelector("#clear-api-key");
 const mapStyleSelect = document.querySelector("#map-style");
 const maxTimeSelect = document.querySelector("#max-time");
@@ -54,6 +55,7 @@ const resetExportFrameButton = document.querySelector("#reset-export-frame");
 const cancelExportButton = document.querySelector("#cancel-export");
 const useLocationButton = document.querySelector("#use-location");
 const statusEl = document.querySelector("#status");
+const printPageStyle = document.querySelector("#print-page-style");
 
 const map = L.map("map", {
   zoomControl: false,
@@ -68,6 +70,7 @@ let originMarker = createOriginMarker(DEFAULT_PLACE.lat, DEFAULT_PLACE.lng, DEFA
 let exportFrame = createExportFrame();
 let exportHandles = createExportHandles();
 let isExportMode = false;
+let useRealData = false;
 let pendingPrintView = null;
 let pendingPrintCrop = null;
 let dragState = null;
@@ -122,6 +125,7 @@ useLocationButton.addEventListener("click", () => {
 
 document.querySelectorAll('input[name="travel-mode"]').forEach((control) => {
   control.addEventListener("change", async () => {
+    invalidateRealData();
     const center = originMarker.getLatLng();
     await refreshTravelTimeOverlay(center.lat, center.lng);
   });
@@ -129,6 +133,7 @@ document.querySelectorAll('input[name="travel-mode"]').forEach((control) => {
 
 document.querySelectorAll('input[name="traffic-mode"]').forEach((control) => {
   control.addEventListener("change", async () => {
+    invalidateRealData();
     const center = originMarker.getLatLng();
     await refreshTravelTimeOverlay(center.lat, center.lng);
   });
@@ -147,6 +152,7 @@ exportSelectionButton.addEventListener("click", () => {
 });
 
 maxTimeSelect.addEventListener("change", async () => {
+  invalidateRealData();
   const center = originMarker.getLatLng();
   await refreshTravelTimeOverlay(center.lat, center.lng);
 });
@@ -175,6 +181,7 @@ window.addEventListener("afterprint", () => {
   document.body.classList.remove("no-print-legend");
   document.body.classList.remove("print-crop");
   clearPrintCropVars();
+  clearPrintPageStyle();
 });
 
 window.addEventListener("beforeprint", () => {
@@ -206,6 +213,7 @@ map.on("mouseup", () => {
 });
 
 orsApiKeyInput.addEventListener("change", async () => {
+  invalidateRealData();
   const key = orsApiKeyInput.value.trim();
 
   if (key) {
@@ -218,7 +226,19 @@ orsApiKeyInput.addEventListener("change", async () => {
   await refreshTravelTimeOverlay(center.lat, center.lng);
 });
 
+fetchRealDataButton.addEventListener("click", async () => {
+  if (!getOpenRouteServiceApiKey()) {
+    setStatus("Paste an OpenRouteService API key first.");
+    return;
+  }
+
+  useRealData = true;
+  const center = originMarker.getLatLng();
+  await refreshTravelTimeOverlay(center.lat, center.lng);
+});
+
 clearApiKeyButton.addEventListener("click", async () => {
+  invalidateRealData();
   orsApiKeyInput.value = "";
   sessionStorage.removeItem(ORS_KEY_STORAGE);
 
@@ -258,6 +278,10 @@ async function geocode(query) {
 }
 
 async function setOrigin(lat, lng, label, options = {}) {
+  if (!options.preserveRealData) {
+    invalidateRealData();
+  }
+
   originMarker.setLatLng([lat, lng]).bindPopup(label).openPopup();
 
   if (options.recenter !== false) {
@@ -302,6 +326,7 @@ async function refreshTravelTimeOverlay(lat, lng) {
     fitMapToOverlay();
     setStatus(describeOverlayResult(result, mode, traffic));
   } catch (error) {
+    useRealData = false;
     renderTravelTimeOverlay(getDemoOverlay({ lat, lng, mode, traffic, minutes: requestedMinutes }));
     fitMapToOverlay();
     setStatus(`${error.message} Showing demo bands instead.`);
@@ -622,7 +647,7 @@ function fitMapToOverlay() {
 }
 
 function getTravelTimeProvider() {
-  return getOpenRouteServiceApiKey() ? "openrouteservice" : "demo";
+  return useRealData && getOpenRouteServiceApiKey() ? "openrouteservice" : "demo";
 }
 
 function getOpenRouteServiceApiKey() {
@@ -640,7 +665,7 @@ function setBaseMapStyle(styleId) {
 
 function describeOverlayResult(result, mode, traffic) {
   if (result.provider === "demo") {
-    return `Showing demo ${mode} bands. Paste an OpenRouteService key for real isochrones.`;
+    return `Showing demo ${mode} bands. Use Fetch real isochrones to call OpenRouteService.`;
   }
 
   const requestedMax = Math.max(...(result.requestedMinutes || []));
@@ -653,6 +678,10 @@ function describeOverlayResult(result, mode, traffic) {
   }
 
   return `Showing OpenRouteService ${mode} isochrones.`;
+}
+
+function invalidateRealData() {
+  useRealData = false;
 }
 
 function setStatus(message) {
@@ -851,16 +880,15 @@ function setPrintCropFromExportFrame() {
 }
 
 function applyPrintCropVars(crop) {
-  const scaleX = window.innerWidth / crop.width;
-  const scaleY = window.innerHeight / crop.height;
   const root = document.documentElement;
 
+  setPrintPageStyle(crop.width, crop.height);
   root.style.setProperty("--export-map-width", `${crop.mapWidth}px`);
   root.style.setProperty("--export-map-height", `${crop.mapHeight}px`);
-  root.style.setProperty("--export-map-left", `${-crop.left * scaleX}px`);
-  root.style.setProperty("--export-map-top", `${-crop.top * scaleY}px`);
-  root.style.setProperty("--export-scale-x", String(scaleX));
-  root.style.setProperty("--export-scale-y", String(scaleY));
+  root.style.setProperty("--export-map-left", `${-crop.left}px`);
+  root.style.setProperty("--export-map-top", `${-crop.top}px`);
+  root.style.setProperty("--export-page-width", `${crop.width}px`);
+  root.style.setProperty("--export-page-height", `${crop.height}px`);
 }
 
 function getExportFramePixelBounds() {
@@ -886,11 +914,26 @@ function clearPrintCropVars() {
     "--export-map-height",
     "--export-map-left",
     "--export-map-top",
-    "--export-scale-x",
-    "--export-scale-y",
+    "--export-page-width",
+    "--export-page-height",
   ].forEach((property) => {
     document.documentElement.style.removeProperty(property);
   });
+}
+
+function setPrintPageStyle(width, height) {
+  printPageStyle.textContent = `
+    @media print {
+      @page {
+        size: ${Math.round(width)}px ${Math.round(height)}px;
+        margin: 0;
+      }
+    }
+  `;
+}
+
+function clearPrintPageStyle() {
+  printPageStyle.textContent = "";
 }
 
 function updateExportHandles() {

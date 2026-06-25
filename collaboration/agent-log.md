@@ -428,3 +428,29 @@ Open Questions:
 
 Next:
 - Test whether the exported PDF now matches the selected frame.
+
+## 2026-06-26 - Explicit API fetch and export aspect ratio
+
+Participants:
+- Human: Nuno
+- AI: Codex
+
+Goal:
+- Prevent surprise API calls and preserve the export selection aspect ratio.
+
+Decisions:
+- Stored ORS keys should not trigger API requests on page reload.
+- Add a dedicated `Fetch real isochrones` button for ORS calls.
+- Reset to demo data when origin, mode, traffic, time band, or API key changes.
+- Generate a temporary print page size that matches the selected export frame.
+
+Tried:
+- Added explicit real-data fetch state.
+- Removed independent X/Y print scaling.
+- Added dynamic print page sizing based on selected frame dimensions.
+
+Open Questions:
+- Some browser print dialogs may ignore dynamic `@page size`; if so, direct PDF generation will be needed.
+
+Next:
+- Test reload behavior and tall/narrow export selections.

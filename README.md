@@ -53,7 +53,7 @@ If tiles appear scrambled or misaligned, the Leaflet stylesheet is probably bloc
 
 The colored circles are placeholders. They are not real travel-time data yet; the next technical step is to replace them with isochrone polygons from a routing provider.
 
-To try real isochrones, create an OpenRouteService API key and paste it into the page. The key is stored only in `sessionStorage` for the current browser session, not committed to the repo.
+To try real isochrones, create an OpenRouteService API key, paste it into the page, and click **Fetch real isochrones**. The key is stored only in `sessionStorage` for the current browser session, not committed to the repo.
 
 Hosted OpenRouteService currently limits driving isochrones to 1 hour. Larger demo bands can be previewed locally, and larger real driving maps will need another provider or a self-hosted routing setup.
 
