@@ -112,8 +112,15 @@
           >
         </label>
 
-        <button id="export-pdf" type="button">Export PDF</button>
-        <button id="reset-export-frame" class="secondary-button" type="button">Reset export frame</button>
+        <label class="checkbox-control">
+          <input id="include-legend" name="include-legend" type="checkbox" checked>
+          Include legend in export
+        </label>
+
+        <button id="prepare-export" type="button">Prepare export</button>
+        <button id="export-selection" class="is-hidden" type="button">Export selection</button>
+        <button id="reset-export-frame" class="secondary-button is-hidden" type="button">Reset export frame</button>
+        <button id="cancel-export" class="secondary-button is-hidden" type="button">Cancel export</button>
 
         <div class="legend" aria-label="Travel time legend">
           <h2>Travel-time bands</h2>
@@ -128,7 +135,7 @@
         </div>
 
         <p id="status" class="status" role="status">Showing a demo map centered on Coimbra.</p>
-        <p class="hint">Right-click the map to set a starting point. Drag the blue frame to choose the PDF area.</p>
+        <p class="hint">Right-click the map to set a starting point. Prepare export to choose a PDF area.</p>
         <p class="attribution">
           © openrouteservice.org by HeiGIT | Map data © OpenStreetMap contributors
         </p>

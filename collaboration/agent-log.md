@@ -350,3 +350,33 @@ Open Questions:
 
 Next:
 - Test the PDF output and adjust the print layout if browser rendering still feels off.
+
+## 2026-06-26 - Export selection mode
+
+Participants:
+- Human: Nuno
+- AI: Codex
+
+Goal:
+- Make export selection explicit instead of showing the export frame all the time.
+
+Decisions:
+- Hide the export frame by default.
+- Use `Prepare export` to enter export mode.
+- Use `Export selection` to print the selected map area.
+- Add corner handles so the export frame can be resized while keeping an A4-landscape ratio.
+- Add a checkbox to include or omit the legend from the export.
+- Tighten print CSS to reduce duplicate/extra PDF pages.
+
+Tried:
+- Added prepare/export/cancel/reset export controls.
+- Added draggable resize handles.
+- Added `no-print-legend` support for print output.
+- Changed print map sizing from viewport height to page height.
+
+Open Questions:
+- Should export controls move into a small floating toolbar over the map?
+- Should the final PDF be generated directly instead of relying on the browser print dialog?
+
+Next:
+- Test export selection in the browser and confirm it produces one page.

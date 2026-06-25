@@ -47,8 +47,11 @@ const clearApiKeyButton = document.querySelector("#clear-api-key");
 const mapStyleSelect = document.querySelector("#map-style");
 const maxTimeSelect = document.querySelector("#max-time");
 const overlayOpacityInput = document.querySelector("#overlay-opacity");
-const exportPdfButton = document.querySelector("#export-pdf");
+const includeLegendInput = document.querySelector("#include-legend");
+const prepareExportButton = document.querySelector("#prepare-export");
+const exportSelectionButton = document.querySelector("#export-selection");
 const resetExportFrameButton = document.querySelector("#reset-export-frame");
+const cancelExportButton = document.querySelector("#cancel-export");
 const useLocationButton = document.querySelector("#use-location");
 const statusEl = document.querySelector("#status");
 
@@ -63,6 +66,8 @@ let baseLayer = createBaseLayer(mapStyles.voyager).addTo(map);
 let overlayLayer = L.featureGroup().addTo(map);
 let originMarker = createOriginMarker(DEFAULT_PLACE.lat, DEFAULT_PLACE.lng, DEFAULT_PLACE.label).addTo(map);
 let exportFrame = createExportFrame();
+let exportHandles = createExportHandles();
+let isExportMode = false;
 let pendingPrintView = null;
 let dragState = null;
 
@@ -132,7 +137,11 @@ mapStyleSelect.addEventListener("change", () => {
   setBaseMapStyle(mapStyleSelect.value);
 });
 
-exportPdfButton.addEventListener("click", () => {
+prepareExportButton.addEventListener("click", () => {
+  enterExportMode();
+});
+
+exportSelectionButton.addEventListener("click", () => {
   exportSelectedFrameToPdf();
 });
 
@@ -149,6 +158,10 @@ resetExportFrameButton.addEventListener("click", () => {
   resetExportFrame();
 });
 
+cancelExportButton.addEventListener("click", () => {
+  exitExportMode();
+});
+
 window.addEventListener("afterprint", () => {
   if (!pendingPrintView) {
     return;
@@ -156,6 +169,7 @@ window.addEventListener("afterprint", () => {
 
   map.setView(pendingPrintView.center, pendingPrintView.zoom, { animate: false });
   pendingPrintView = null;
+  document.body.classList.remove("no-print-legend");
 });
 
 document.addEventListener("mouseup", () => {
@@ -590,7 +604,9 @@ function fitMapToOverlay() {
   }
 
   window.setTimeout(() => {
-    resetExportFrame();
+    if (isExportMode) {
+      resetExportFrame();
+    }
   }, 0);
 }
 
@@ -654,7 +670,7 @@ function createExportFrame() {
     opacity: 0.95,
     weight: 3,
     dashArray: "10 7",
-  }).addTo(map);
+  });
 
   rectangle.on("mousedown", (event) => {
     L.DomEvent.stopPropagation(event);
@@ -662,6 +678,74 @@ function createExportFrame() {
   });
 
   return rectangle;
+}
+
+function createExportHandles() {
+  return ["northWest", "northEast", "southEast", "southWest"].map((corner) => {
+    const marker = L.marker([0, 0], {
+      draggable: true,
+      icon: L.divIcon({
+        className: "export-handle-icon",
+        html: '<div class="export-handle"></div>',
+        iconSize: [18, 18],
+        iconAnchor: [9, 9],
+      }),
+      zIndexOffset: 1000,
+    });
+
+    marker.on("drag", (event) => {
+      resizeExportFrame(corner, event.target.getLatLng());
+    });
+
+    marker.on("dragend", () => {
+      updateExportHandles();
+    });
+
+    return { corner, marker };
+  });
+}
+
+function enterExportMode() {
+  isExportMode = true;
+
+  if (!map.hasLayer(exportFrame)) {
+    exportFrame.addTo(map);
+  }
+
+  exportHandles.forEach(({ marker }) => {
+    if (!map.hasLayer(marker)) {
+      marker.addTo(map);
+    }
+  });
+
+  resetExportFrame();
+  updateExportControls();
+  setStatus("Adjust the export frame, then choose Export selection.");
+}
+
+function exitExportMode() {
+  isExportMode = false;
+  finishExportFrameDrag();
+
+  if (map.hasLayer(exportFrame)) {
+    map.removeLayer(exportFrame);
+  }
+
+  exportHandles.forEach(({ marker }) => {
+    if (map.hasLayer(marker)) {
+      map.removeLayer(marker);
+    }
+  });
+
+  updateExportControls();
+  setStatus("Export selection cancelled.");
+}
+
+function updateExportControls() {
+  prepareExportButton.classList.toggle("is-hidden", isExportMode);
+  exportSelectionButton.classList.toggle("is-hidden", !isExportMode);
+  resetExportFrameButton.classList.toggle("is-hidden", !isExportMode);
+  cancelExportButton.classList.toggle("is-hidden", !isExportMode);
 }
 
 function getDefaultExportFrameBounds() {
@@ -684,6 +768,7 @@ function getDefaultExportFrameBounds() {
 
 function resetExportFrame() {
   exportFrame.setBounds(getDefaultExportFrameBounds());
+  updateExportHandles();
 }
 
 function startExportFrameDrag(latlng) {
@@ -720,15 +805,22 @@ function finishExportFrameDrag() {
 
   dragState = null;
   map.dragging.enable();
-  setStatus("Export frame moved. Use Export PDF to print that area.");
+  updateExportHandles();
+  setStatus("Export frame moved. Use Export selection to print that area.");
 }
 
 function exportSelectedFrameToPdf() {
+  if (!isExportMode) {
+    enterExportMode();
+    return;
+  }
+
   pendingPrintView = {
     center: map.getCenter(),
     zoom: map.getZoom(),
   };
 
+  document.body.classList.toggle("no-print-legend", !includeLegendInput.checked);
   map.fitBounds(exportFrame.getBounds(), {
     animate: false,
     padding: [0, 0],
@@ -739,4 +831,49 @@ function exportSelectedFrameToPdf() {
   window.setTimeout(() => {
     window.print();
   }, 250);
+}
+
+function updateExportHandles() {
+  if (!exportFrame) {
+    return;
+  }
+
+  const bounds = exportFrame.getBounds();
+  const corners = {
+    northWest: bounds.getNorthWest(),
+    northEast: bounds.getNorthEast(),
+    southEast: bounds.getSouthEast(),
+    southWest: bounds.getSouthWest(),
+  };
+
+  exportHandles.forEach(({ corner, marker }) => {
+    marker.setLatLng(corners[corner]);
+  });
+}
+
+function resizeExportFrame(corner, latlng) {
+  const bounds = exportFrame.getBounds();
+  const oppositeCorner = {
+    northWest: bounds.getSouthEast(),
+    northEast: bounds.getSouthWest(),
+    southEast: bounds.getNorthWest(),
+    southWest: bounds.getNorthEast(),
+  }[corner];
+
+  const oppositePoint = map.latLngToContainerPoint(oppositeCorner);
+  const draggedPoint = map.latLngToContainerPoint(latlng);
+  const width = Math.max(180, Math.abs(draggedPoint.x - oppositePoint.x));
+  const height = width / 1.414;
+  const xDirection = corner === "northWest" || corner === "southWest" ? -1 : 1;
+  const yDirection = corner === "northWest" || corner === "northEast" ? -1 : 1;
+  const adjustedPoint = L.point(
+    oppositePoint.x + xDirection * width,
+    oppositePoint.y + yDirection * height
+  );
+
+  exportFrame.setBounds(L.latLngBounds(
+    oppositeCorner,
+    map.containerPointToLatLng(adjustedPoint)
+  ));
+  updateExportHandles();
 }

@@ -257,6 +257,18 @@ input[type="search"] {
   gap: 8px;
 }
 
+.checkbox-control {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  color: var(--muted);
+  font-weight: 650;
+}
+
+.is-hidden {
+  display: none;
+}
+
 select {
   width: 100%;
   border: 1px solid var(--line);
@@ -377,6 +389,15 @@ fieldset label {
   filter: drop-shadow(0 2px 7px rgb(0 0 0 / 0.22));
 }
 
+.export-handle {
+  width: 18px;
+  height: 18px;
+  border: 3px solid #ffffff;
+  border-radius: 999px;
+  background: #13505b;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 0.28);
+}
+
 .map-panel {
   min-height: 100vh;
 }
@@ -409,7 +430,11 @@ fieldset label {
     margin: 0;
   }
 
+  html,
   body {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
     background: #ffffff;
     print-color-adjust: exact;
     -webkit-print-color-adjust: exact;
@@ -425,7 +450,7 @@ fieldset label {
     position: fixed;
     inset: 0;
     width: 100%;
-    height: 100vh;
+    height: 100%;
     min-height: 0;
   }
 
@@ -449,12 +474,21 @@ fieldset label {
   fieldset,
   .select-control,
   .range-control,
-  #export-pdf,
+  .checkbox-control,
+  #prepare-export,
+  #export-selection,
   #reset-export-frame,
+  #cancel-export,
   .status,
   .hint,
   .leaflet-control-zoom,
-  .export-frame {
+  .export-frame,
+  .export-handle-icon,
+  .export-handle {
+    display: none;
+  }
+
+  body.no-print-legend .legend {
     display: none;
   }
 
