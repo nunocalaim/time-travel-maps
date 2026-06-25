@@ -111,3 +111,29 @@ Open Questions:
 Next:
 - Refresh the local page and confirm tile alignment.
 - If CDN JavaScript or CSS continues to be unreliable, vendor Leaflet assets locally or introduce a small package setup.
+
+## 2026-06-25 - Overlay ordering and marker cleanup
+
+Participants:
+- Human: Nuno
+- AI: Codex
+
+Goal:
+- Fix demo circles disappearing behind map tiles and remove clipped marker text.
+
+Decisions:
+- Add local fallback z-index rules for Leaflet panes.
+- Replace Leaflet's default image marker with a vector `circleMarker` so the prototype does not depend on marker image assets.
+- Keep the concentric circles clearly documented as placeholder data.
+
+Tried:
+- Added pane stacking rules for tile, overlay, marker, tooltip, popup, and control panes.
+- Switched the origin marker from `L.marker` to `L.circleMarker`.
+
+Open Questions:
+- Should the placeholder become a more realistic fake isochrone shape before real API integration?
+- Which routing provider should generate the first real isochrone polygons?
+
+Next:
+- Refresh the local page and verify the circles remain visible over the tiles.
+- Choose and test a real isochrone provider.

@@ -29,8 +29,8 @@ L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r
     '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
 }).addTo(map);
 
-let originMarker = L.marker([DEFAULT_PLACE.lat, DEFAULT_PLACE.lng]).addTo(map);
 let overlayLayer = L.layerGroup().addTo(map);
+let originMarker = createOriginMarker(DEFAULT_PLACE.lat, DEFAULT_PLACE.lng, DEFAULT_PLACE.label).addTo(map);
 
 input.value = DEFAULT_PLACE.label;
 drawDemoBands(DEFAULT_PLACE.lat, DEFAULT_PLACE.lng, "drive");
@@ -125,6 +125,17 @@ function setOrigin(lat, lng, label) {
   const mode = document.querySelector('input[name="travel-mode"]:checked').value;
   drawDemoBands(lat, lng, mode);
   setStatus(`Showing demo ${mode} bands around ${label}.`);
+}
+
+function createOriginMarker(lat, lng, label) {
+  return L.circleMarker([lat, lng], {
+    radius: 9,
+    color: "#ffffff",
+    fillColor: "#13505b",
+    fillOpacity: 1,
+    opacity: 1,
+    weight: 3,
+  }).bindPopup(label);
 }
 
 function drawDemoBands(lat, lng, mode) {
