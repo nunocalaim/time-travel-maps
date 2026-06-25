@@ -248,3 +248,24 @@ Open Questions:
 
 Next:
 - Test right-click origin selection in the browser.
+
+## 2026-06-25 - Favicon
+
+Participants:
+- Human: Nuno
+- AI: Codex
+
+Goal:
+- Remove the harmless but noisy `/favicon.ico` 404 from the local dev server.
+
+Decisions:
+- Add a small SVG favicon linked from `index.html`.
+
+Tried:
+- Created `favicon.svg` using the project travel-time band colors.
+
+Open Questions:
+- Should the favicon evolve into a proper project mark later?
+
+Next:
+- Refresh the page and confirm the server no longer reports a missing favicon.
