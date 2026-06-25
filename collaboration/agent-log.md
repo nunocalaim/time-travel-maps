@@ -87,3 +87,27 @@ Open Questions:
 Next:
 - Reopen `index.html` and check whether tiles render more consistently.
 - Choose a production tile and routing provider before publishing a public app.
+
+## 2026-06-25 - Leaflet CSS fallback
+
+Participants:
+- Human: Nuno
+- AI: Codex
+
+Goal:
+- Fix map tiles appearing misaligned or out of order on `localhost`.
+
+Decisions:
+- Keep using CDN Leaflet for now, but add essential Leaflet layout rules locally in `styles.css`.
+- Treat scrambled tiles as a likely stylesheet-loading problem rather than a routing or map-data issue.
+
+Tried:
+- Added local fallback positioning for Leaflet panes, tile containers, tiles, controls, attribution, and popups.
+
+Open Questions:
+- Should Leaflet be vendored locally or installed through a build system later?
+- Should the first publishable version avoid CDN dependencies entirely?
+
+Next:
+- Refresh the local page and confirm tile alignment.
+- If CDN JavaScript or CSS continues to be unreliable, vendor Leaflet assets locally or introduce a small package setup.

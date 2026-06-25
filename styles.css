@@ -9,6 +9,138 @@
   --accent-strong: #13505b;
 }
 
+/* Local fallback for the essential Leaflet layout rules.
+   If the CDN stylesheet is blocked, map tiles still need absolute positioning. */
+.leaflet-container {
+  overflow: hidden;
+  touch-action: pan-x pan-y;
+}
+
+.leaflet-pane,
+.leaflet-tile,
+.leaflet-marker-icon,
+.leaflet-marker-shadow,
+.leaflet-tile-container,
+.leaflet-pane > svg,
+.leaflet-pane > canvas,
+.leaflet-zoom-box,
+.leaflet-image-layer,
+.leaflet-layer {
+  position: absolute;
+  left: 0;
+  top: 0;
+}
+
+.leaflet-tile,
+.leaflet-marker-icon,
+.leaflet-marker-shadow {
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.leaflet-tile {
+  max-width: none;
+  max-height: none;
+}
+
+.leaflet-control {
+  position: relative;
+  z-index: 800;
+  pointer-events: auto;
+}
+
+.leaflet-top,
+.leaflet-bottom {
+  position: absolute;
+  z-index: 1000;
+  pointer-events: none;
+}
+
+.leaflet-top {
+  top: 0;
+}
+
+.leaflet-right {
+  right: 0;
+}
+
+.leaflet-bottom {
+  bottom: 0;
+}
+
+.leaflet-left {
+  left: 0;
+}
+
+.leaflet-control-zoom {
+  border: 1px solid rgb(0 0 0 / 0.2);
+  border-radius: 8px;
+  overflow: hidden;
+  background: #ffffff;
+}
+
+.leaflet-control-zoom a {
+  display: block;
+  width: 34px;
+  height: 34px;
+  color: var(--ink);
+  background: #ffffff;
+  border-bottom: 1px solid var(--line);
+  line-height: 34px;
+  text-align: center;
+  text-decoration: none;
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.leaflet-control-zoom a:last-child {
+  border-bottom: 0;
+}
+
+.leaflet-control-attribution {
+  margin: 0;
+  padding: 4px 7px;
+  color: var(--muted);
+  background: rgb(255 255 255 / 0.86);
+  font-size: 0.7rem;
+}
+
+.leaflet-popup {
+  position: absolute;
+  text-align: center;
+}
+
+.leaflet-popup-content-wrapper {
+  padding: 1px;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 3px 14px rgb(0 0 0 / 0.2);
+}
+
+.leaflet-popup-content {
+  margin: 11px 13px;
+  line-height: 1.35;
+}
+
+.leaflet-popup-tip-container {
+  position: absolute;
+  left: 50%;
+  width: 40px;
+  height: 20px;
+  margin-left: -20px;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.leaflet-popup-tip {
+  width: 17px;
+  height: 17px;
+  margin: -10px auto 0;
+  background: #ffffff;
+  transform: rotate(45deg);
+  box-shadow: 0 3px 14px rgb(0 0 0 / 0.2);
+}
+
 * {
   box-sizing: border-box;
 }

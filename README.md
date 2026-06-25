@@ -39,6 +39,8 @@ It currently uses:
 - Nominatim for public location search.
 - Demo travel-time rings, not real routing or traffic data yet.
 
+If tiles appear scrambled or misaligned, the Leaflet stylesheet is probably blocked by the browser or CDN. The app includes local fallback layout rules in `styles.css`, so refresh the page after pulling the latest files.
+
 Later:
 
 - Current traffic versus normal traffic.
