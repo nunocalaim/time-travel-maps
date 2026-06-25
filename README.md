@@ -57,7 +57,7 @@ To try real isochrones, create an OpenRouteService API key and paste it into the
 
 Hosted OpenRouteService currently limits driving isochrones to 1 hour. Larger demo bands can be previewed locally, and larger real driving maps will need another provider or a self-hosted routing setup.
 
-Use **Prepare export** to show the blue export frame, adjust it, then use **Export selection** to open the browser print dialog. Choose "Save as PDF".
+Use **Prepare export** to show the blue export frame, adjust it, then use **Export selection** to crop the map to that frame and open the browser print dialog. Choose "Save as PDF".
 
 The default bands are now 1, 5, 10, 15, 20, 30, 45, and 60 minutes.
 

@@ -69,6 +69,7 @@ let exportFrame = createExportFrame();
 let exportHandles = createExportHandles();
 let isExportMode = false;
 let pendingPrintView = null;
+let pendingPrintCrop = null;
 let dragState = null;
 
 input.value = DEFAULT_PLACE.label;
@@ -168,8 +169,18 @@ window.addEventListener("afterprint", () => {
   }
 
   map.setView(pendingPrintView.center, pendingPrintView.zoom, { animate: false });
+  map.invalidateSize();
   pendingPrintView = null;
+  pendingPrintCrop = null;
   document.body.classList.remove("no-print-legend");
+  document.body.classList.remove("print-crop");
+  clearPrintCropVars();
+});
+
+window.addEventListener("beforeprint", () => {
+  if (pendingPrintCrop) {
+    applyPrintCropVars(pendingPrintCrop);
+  }
 });
 
 document.addEventListener("mouseup", () => {
@@ -821,16 +832,65 @@ function exportSelectedFrameToPdf() {
   };
 
   document.body.classList.toggle("no-print-legend", !includeLegendInput.checked);
-  map.fitBounds(exportFrame.getBounds(), {
-    animate: false,
-    padding: [0, 0],
-  });
+  setPrintCropFromExportFrame();
   map.invalidateSize();
   setStatus("Preparing selected export area...");
 
   window.setTimeout(() => {
     window.print();
   }, 250);
+}
+
+function setPrintCropFromExportFrame() {
+  const mapSize = map.getSize();
+  const crop = getExportFramePixelBounds();
+
+  pendingPrintCrop = { ...crop, mapWidth: mapSize.x, mapHeight: mapSize.y };
+  applyPrintCropVars(pendingPrintCrop);
+  document.body.classList.add("print-crop");
+}
+
+function applyPrintCropVars(crop) {
+  const scaleX = window.innerWidth / crop.width;
+  const scaleY = window.innerHeight / crop.height;
+  const root = document.documentElement;
+
+  root.style.setProperty("--export-map-width", `${crop.mapWidth}px`);
+  root.style.setProperty("--export-map-height", `${crop.mapHeight}px`);
+  root.style.setProperty("--export-map-left", `${-crop.left * scaleX}px`);
+  root.style.setProperty("--export-map-top", `${-crop.top * scaleY}px`);
+  root.style.setProperty("--export-scale-x", String(scaleX));
+  root.style.setProperty("--export-scale-y", String(scaleY));
+}
+
+function getExportFramePixelBounds() {
+  const bounds = exportFrame.getBounds();
+  const northWest = map.latLngToContainerPoint(bounds.getNorthWest());
+  const southEast = map.latLngToContainerPoint(bounds.getSouthEast());
+  const left = Math.min(northWest.x, southEast.x);
+  const right = Math.max(northWest.x, southEast.x);
+  const top = Math.min(northWest.y, southEast.y);
+  const bottom = Math.max(northWest.y, southEast.y);
+
+  return {
+    left,
+    top,
+    width: Math.max(1, right - left),
+    height: Math.max(1, bottom - top),
+  };
+}
+
+function clearPrintCropVars() {
+  [
+    "--export-map-width",
+    "--export-map-height",
+    "--export-map-left",
+    "--export-map-top",
+    "--export-scale-x",
+    "--export-scale-y",
+  ].forEach((property) => {
+    document.documentElement.style.removeProperty(property);
+  });
 }
 
 function updateExportHandles() {

@@ -403,3 +403,28 @@ Open Questions:
 
 Next:
 - Test export composition with freeform frame resizing.
+
+## 2026-06-26 - Print crop export
+
+Participants:
+- Human: Nuno
+- AI: Codex
+
+Goal:
+- Make the exported PDF match the selected rectangle.
+
+Decisions:
+- Stop using Leaflet `fitBounds` for export because it changes the geographic framing instead of cropping the selected screen rectangle.
+- Use the export frame's screen-pixel bounds to scale and shift the map during print.
+- Keep attribution outside the transformed map so it remains visible in the export.
+
+Tried:
+- Added print-crop CSS variables for map size, offset, and scale.
+- Added print-crop setup/cleanup around the browser print dialog.
+- Moved map attribution outside the Leaflet map container.
+
+Open Questions:
+- Browser print engines may still vary; should a future export use a generated image/PDF pipeline?
+
+Next:
+- Test whether the exported PDF now matches the selected frame.

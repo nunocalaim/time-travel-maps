@@ -399,11 +399,11 @@ fieldset label {
 }
 
 .map-panel {
+  position: relative;
   min-height: 100vh;
 }
 
 #map {
-  position: relative;
   width: 100%;
   height: 100%;
   min-height: 100vh;
@@ -474,6 +474,20 @@ fieldset label {
     min-height: 0;
   }
 
+  body.print-crop .map-panel {
+    overflow: hidden;
+  }
+
+  body.print-crop #map {
+    inset: auto;
+    left: var(--export-map-left);
+    top: var(--export-map-top);
+    width: var(--export-map-width);
+    height: var(--export-map-height);
+    transform: scale(var(--export-scale-x), var(--export-scale-y));
+    transform-origin: top left;
+  }
+
   .control-panel {
     position: fixed;
     top: 16px;
@@ -514,6 +528,13 @@ fieldset label {
 
   .attribution {
     margin: 0;
+    font-size: 0.66rem;
+  }
+
+  .map-attribution {
+    position: fixed;
+    right: 10px;
+    bottom: 10px;
     font-size: 0.66rem;
   }
 
