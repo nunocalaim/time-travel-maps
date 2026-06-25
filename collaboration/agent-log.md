@@ -168,3 +168,32 @@ Next:
 - Choose the first provider to trial.
 - Add `.env.example` and a no-secret configuration path if a provider key is needed.
 - Replace demo rings with provider GeoJSON when credentials are available.
+
+## 2026-06-25 - OpenRouteService trial integration
+
+Participants:
+- Human: Nuno
+- AI: Codex
+
+Goal:
+- Replace the path toward demo-only rings with a real isochrone provider.
+
+Decisions:
+- Use OpenRouteService as the first trial provider.
+- Keep the API key out of files by accepting it in the page and storing it only in `sessionStorage`.
+- Continue falling back to demo rings when no key is present or the provider request fails.
+- Treat traffic controls as future-facing for now because OpenRouteService is not being used for live traffic in this prototype.
+
+Tried:
+- Added an OpenRouteService API key field.
+- Added a provider adapter that calls `/v2/isochrones/{profile}`.
+- Styled returned GeoJSON features with the existing time-band colors.
+
+Open Questions:
+- Are OpenRouteService terms acceptable for cached or exported gift maps?
+- Should API calls move behind a backend before this becomes public?
+- Should Mapbox or Google still be trialed for traffic-aware driving isochrones?
+
+Next:
+- Paste an OpenRouteService key locally and verify real polygons render.
+- If successful, decide whether to merge this experiment back to `main`.

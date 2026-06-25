@@ -20,6 +20,8 @@ Prefer a real isochrone provider for the first real-data prototype.
 
 Use placeholder rings only as a local fallback. Do not build our own road-type travel-time engine unless we later self-host a real routing engine such as Valhalla, GraphHopper, OSRM, or a similar network-based system.
 
+Use OpenRouteService as the first browser-based trial provider because it returns GeoJSON isochrone features and lets the prototype keep the current Leaflet/CARTO map stack.
+
 ## Rationale
 
 - Isochrone APIs directly return the shape we need.
@@ -40,10 +42,10 @@ Use placeholder rings only as a local fallback. Do not build our own road-type t
 - API keys must not be committed.
 - Provider terms must be checked before caching results or exporting gift maps.
 - The UI should continue to work with demo data when no provider is configured.
+- The first OpenRouteService integration does not apply live traffic.
 
 ## Alternatives Considered
 
 - Sample a destination lattice and interpolate travel times.
 - Estimate travel time from OSM road classes and assumed speeds.
 - Delay all real-data work until map appearance is polished.
-

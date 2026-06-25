@@ -19,8 +19,8 @@
           <p class="eyebrow">Time to X</p>
           <h1>Giftable travel-time maps</h1>
           <p class="intro">
-            Choose a place and preview color-coded reachability bands. This first version uses
-            demo rings; real routing and traffic will come after we choose a provider.
+            Choose a place and preview color-coded reachability bands. Use demo rings, or paste
+            an OpenRouteService key to request real isochrone polygons.
           </p>
         </div>
 
@@ -65,6 +65,19 @@
             <input type="radio" name="traffic-mode" value="live" disabled>
             Live traffic later
           </label>
+        </fieldset>
+
+        <fieldset>
+          <legend>Real data</legend>
+          <label for="ors-api-key">OpenRouteService API key</label>
+          <input
+            id="ors-api-key"
+            name="ors-api-key"
+            type="password"
+            placeholder="Paste key for real isochrones"
+            autocomplete="off"
+          >
+          <button id="clear-api-key" class="secondary-button" type="button">Clear key</button>
         </fieldset>
 
         <label class="select-control" for="map-style">

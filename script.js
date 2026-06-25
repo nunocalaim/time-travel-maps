@@ -12,7 +12,8 @@ const bandColors = {
   60: "#d94f45",
 };
 
-const TRAVEL_TIME_PROVIDER = "demo";
+const ORS_ENDPOINT = "https://api.openrouteservice.org/v2/isochrones";
+const ORS_KEY_STORAGE = "time-to-x:ors-api-key";
 
 const mapStyles = {
   voyager: {
@@ -37,6 +38,8 @@ const mapStyles = {
 
 const form = document.querySelector("#location-form");
 const input = document.querySelector("#location-input");
+const orsApiKeyInput = document.querySelector("#ors-api-key");
+const clearApiKeyButton = document.querySelector("#clear-api-key");
 const mapStyleSelect = document.querySelector("#map-style");
 const useLocationButton = document.querySelector("#use-location");
 const statusEl = document.querySelector("#status");
@@ -53,6 +56,7 @@ let overlayLayer = L.layerGroup().addTo(map);
 let originMarker = createOriginMarker(DEFAULT_PLACE.lat, DEFAULT_PLACE.lng, DEFAULT_PLACE.label).addTo(map);
 
 input.value = DEFAULT_PLACE.label;
+orsApiKeyInput.value = sessionStorage.getItem(ORS_KEY_STORAGE) || "";
 refreshTravelTimeOverlay(DEFAULT_PLACE.lat, DEFAULT_PLACE.lng);
 
 form.addEventListener("submit", async (event) => {
@@ -117,6 +121,27 @@ mapStyleSelect.addEventListener("change", () => {
   setBaseMapStyle(mapStyleSelect.value);
 });
 
+orsApiKeyInput.addEventListener("change", async () => {
+  const key = orsApiKeyInput.value.trim();
+
+  if (key) {
+    sessionStorage.setItem(ORS_KEY_STORAGE, key);
+  } else {
+    sessionStorage.removeItem(ORS_KEY_STORAGE);
+  }
+
+  const center = originMarker.getLatLng();
+  await refreshTravelTimeOverlay(center.lat, center.lng);
+});
+
+clearApiKeyButton.addEventListener("click", async () => {
+  orsApiKeyInput.value = "";
+  sessionStorage.removeItem(ORS_KEY_STORAGE);
+
+  const center = originMarker.getLatLng();
+  await refreshTravelTimeOverlay(center.lat, center.lng);
+});
+
 async function geocode(query) {
   const params = new URLSearchParams({
     q: query,
@@ -153,7 +178,6 @@ async function setOrigin(lat, lng, label) {
   map.setView([lat, lng], 9);
 
   await refreshTravelTimeOverlay(lat, lng);
-  setStatus(`Showing ${TRAVEL_TIME_PROVIDER} travel-time bands around ${label}.`);
 }
 
 function createOriginMarker(lat, lng, label) {
@@ -170,27 +194,79 @@ function createOriginMarker(lat, lng, label) {
 async function refreshTravelTimeOverlay(lat, lng) {
   const mode = document.querySelector('input[name="travel-mode"]:checked').value;
   const traffic = document.querySelector('input[name="traffic-mode"]:checked').value;
+  const provider = getTravelTimeProvider();
 
-  setStatus(`Loading ${TRAVEL_TIME_PROVIDER} ${mode} bands...`);
+  setStatus(`Loading ${provider} ${mode} bands...`);
 
-  const result = await getTravelTimeOverlay({
-    lat,
-    lng,
-    mode,
-    traffic,
-    minutes: [10, 20, 30, 45, 60],
-  });
+  try {
+    const result = await getTravelTimeOverlay({
+      lat,
+      lng,
+      mode,
+      traffic,
+      minutes: [10, 20, 30, 45, 60],
+      provider,
+    });
 
-  renderTravelTimeOverlay(result);
-  setStatus(describeOverlayResult(result, mode, traffic));
+    renderTravelTimeOverlay(result);
+    setStatus(describeOverlayResult(result, mode, traffic));
+  } catch (error) {
+    renderTravelTimeOverlay(getDemoOverlay({ lat, lng, mode, traffic, minutes: [10, 20, 30, 45, 60] }));
+    setStatus(`${error.message} Showing demo bands instead.`);
+  }
 }
 
 async function getTravelTimeOverlay(request) {
-  if (TRAVEL_TIME_PROVIDER === "demo") {
+  if (request.provider === "demo") {
     return getDemoOverlay(request);
   }
 
-  throw new Error(`Unsupported travel-time provider: ${TRAVEL_TIME_PROVIDER}`);
+  if (request.provider === "openrouteservice") {
+    return getOpenRouteServiceOverlay(request);
+  }
+
+  throw new Error(`Unsupported travel-time provider: ${request.provider}`);
+}
+
+async function getOpenRouteServiceOverlay(request) {
+  const apiKey = getOpenRouteServiceApiKey();
+  const profile = getOpenRouteServiceProfile(request.mode);
+  const ranges = request.minutes.map((minutes) => minutes * 60);
+
+  const response = await fetch(`${ORS_ENDPOINT}/${profile}`, {
+    method: "POST",
+    headers: {
+      Accept: "application/json, application/geo+json",
+      Authorization: apiKey,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      locations: [[request.lng, request.lat]],
+      range: ranges,
+      range_type: "time",
+      smoothing: 0.25,
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`OpenRouteService returned ${response.status}.`);
+  }
+
+  const geojson = await response.json();
+
+  return {
+    provider: "openrouteservice",
+    type: "geojson",
+    geojson: styleIsochroneGeoJson(geojson),
+  };
+}
+
+function getOpenRouteServiceProfile(mode) {
+  if (mode === "walk") {
+    return "foot-walking";
+  }
+
+  return "driving-car";
 }
 
 function getDemoOverlay(request) {
@@ -221,19 +297,51 @@ function renderTravelTimeOverlay(result) {
 function drawGeoJsonBands(geojson) {
   overlayLayer.clearLayers();
 
-  L.geoJSON(geojson, {
+  const sortedFeatures = [...(geojson.features || [])].sort((a, b) => {
+    return getIsochroneMinutes(b) - getIsochroneMinutes(a);
+  });
+
+  L.geoJSON({ ...geojson, features: sortedFeatures }, {
     style: (feature) => {
       const properties = feature.properties || {};
 
       return {
         color: properties.color || properties.fillColor || "#1f7a8c",
         fillColor: properties.fillColor || properties.fill || "#1f7a8c",
-        fillOpacity: properties.fillOpacity || properties["fill-opacity"] || 0.25,
+        fillOpacity: properties.fillOpacity || properties["fill-opacity"] || 0.22,
         opacity: properties.opacity || 0.85,
         weight: 2,
       };
     },
   }).addTo(overlayLayer);
+}
+
+function styleIsochroneGeoJson(geojson) {
+  return {
+    ...geojson,
+    features: (geojson.features || []).map((feature) => {
+      const minutes = getIsochroneMinutes(feature);
+      const color = getBandColor(minutes);
+
+      return {
+        ...feature,
+        properties: {
+          ...(feature.properties || {}),
+          minutes,
+          color,
+          fillColor: color,
+          fillOpacity: 0.22,
+        },
+      };
+    }),
+  };
+}
+
+function getIsochroneMinutes(feature) {
+  const properties = feature.properties || {};
+  const seconds = properties.value || properties.contour || properties.time || 0;
+
+  return Math.round(seconds / 60);
 }
 
 function drawDemoBands(lat, lng, mode, minutes = [10, 20, 30, 45, 60]) {
@@ -261,6 +369,34 @@ function createBaseLayer(style) {
   });
 }
 
+function getBandColor(minutes) {
+  if (minutes <= 10) {
+    return bandColors[10];
+  }
+
+  if (minutes <= 20) {
+    return bandColors[20];
+  }
+
+  if (minutes <= 30) {
+    return bandColors[30];
+  }
+
+  if (minutes <= 45) {
+    return bandColors[45];
+  }
+
+  return bandColors[60];
+}
+
+function getTravelTimeProvider() {
+  return getOpenRouteServiceApiKey() ? "openrouteservice" : "demo";
+}
+
+function getOpenRouteServiceApiKey() {
+  return orsApiKeyInput.value.trim() || sessionStorage.getItem(ORS_KEY_STORAGE) || "";
+}
+
 function setBaseMapStyle(styleId) {
   const style = mapStyles[styleId] || mapStyles.voyager;
 
@@ -272,10 +408,14 @@ function setBaseMapStyle(styleId) {
 
 function describeOverlayResult(result, mode, traffic) {
   if (result.provider === "demo") {
-    return `Showing demo ${mode} bands with ${traffic} selected. Real isochrones need an API provider.`;
+    return `Showing demo ${mode} bands. Paste an OpenRouteService key for real isochrones.`;
   }
 
-  return `Showing ${result.provider} ${mode} bands with ${traffic} selected.`;
+  if (traffic !== "traffic-free") {
+    return `Showing OpenRouteService ${mode} isochrones. Traffic mode is not applied by this provider yet.`;
+  }
+
+  return `Showing OpenRouteService ${mode} isochrones.`;
 }
 
 function setStatus(message) {
