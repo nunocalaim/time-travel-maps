@@ -43,6 +43,7 @@ Use OpenRouteService as the first browser-based trial provider because it return
 - Provider terms must be checked before caching results or exporting gift maps.
 - The UI should continue to work with demo data when no provider is configured.
 - The first OpenRouteService integration does not apply live traffic.
+- Hosted OpenRouteService currently caps driving isochrones at 1 hour, so larger real driving maps need another provider or self-hosting.
 
 ## Alternatives Considered
 

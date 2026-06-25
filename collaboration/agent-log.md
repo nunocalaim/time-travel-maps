@@ -197,3 +197,32 @@ Open Questions:
 Next:
 - Paste an OpenRouteService key locally and verify real polygons render.
 - If successful, decide whether to merge this experiment back to `main`.
+
+## 2026-06-25 - Larger bands and map-refined origin
+
+Participants:
+- Human: Nuno
+- AI: Codex
+
+Goal:
+- Let users explore larger travel-time maps and refine the origin directly on the map.
+
+Decisions:
+- Add a maximum travel time selector up to 3 hours.
+- Keep hosted OpenRouteService driving requests capped at 60 minutes because of current provider restrictions.
+- Fit the map to the active overlay after each redraw.
+- Let map clicks set a precise starting location.
+
+Tried:
+- Added 90, 120, and 180 minute demo bands.
+- Added click-to-set-origin behavior.
+- Changed the initial map behavior from a fixed zoom to overlay fitting.
+
+Open Questions:
+- Which provider supports larger real driving isochrones with acceptable terms and cost?
+- Should the map click also reverse-geocode a readable address?
+- Should the legend hide bands above the current maximum time?
+
+Next:
+- Test the click-to-set-origin interaction in the browser.
+- Decide whether larger real driving maps should use Google, Mapbox, another provider, or self-hosted routing.

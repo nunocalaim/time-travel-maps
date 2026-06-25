@@ -10,10 +10,14 @@ const bandColors = {
   30: "#f5c542",
   45: "#f28f3b",
   60: "#d94f45",
+  90: "#b84665",
+  120: "#7f4f9a",
+  180: "#4a4e9d",
 };
 
 const ORS_ENDPOINT = "https://api.openrouteservice.org/v2/isochrones";
 const ORS_KEY_STORAGE = "time-to-x:ors-api-key";
+const ORS_MAX_DRIVING_MINUTES = 60;
 
 const mapStyles = {
   voyager: {
@@ -41,18 +45,19 @@ const input = document.querySelector("#location-input");
 const orsApiKeyInput = document.querySelector("#ors-api-key");
 const clearApiKeyButton = document.querySelector("#clear-api-key");
 const mapStyleSelect = document.querySelector("#map-style");
+const maxTimeSelect = document.querySelector("#max-time");
 const useLocationButton = document.querySelector("#use-location");
 const statusEl = document.querySelector("#status");
 
 const map = L.map("map", {
   zoomControl: false,
-}).setView([DEFAULT_PLACE.lat, DEFAULT_PLACE.lng], 9);
+}).setView([DEFAULT_PLACE.lat, DEFAULT_PLACE.lng], 10);
 
 L.control.zoom({ position: "bottomright" }).addTo(map);
 
 let baseLayer = createBaseLayer(mapStyles.voyager).addTo(map);
 
-let overlayLayer = L.layerGroup().addTo(map);
+let overlayLayer = L.featureGroup().addTo(map);
 let originMarker = createOriginMarker(DEFAULT_PLACE.lat, DEFAULT_PLACE.lng, DEFAULT_PLACE.label).addTo(map);
 
 input.value = DEFAULT_PLACE.label;
@@ -121,6 +126,17 @@ mapStyleSelect.addEventListener("change", () => {
   setBaseMapStyle(mapStyleSelect.value);
 });
 
+maxTimeSelect.addEventListener("change", async () => {
+  const center = originMarker.getLatLng();
+  await refreshTravelTimeOverlay(center.lat, center.lng);
+});
+
+map.on("click", async (event) => {
+  const { lat, lng } = event.latlng;
+  input.value = `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+  await setOrigin(lat, lng, "selected map point", { recenter: false });
+});
+
 orsApiKeyInput.addEventListener("change", async () => {
   const key = orsApiKeyInput.value.trim();
 
@@ -173,9 +189,12 @@ async function geocode(query) {
   };
 }
 
-async function setOrigin(lat, lng, label) {
+async function setOrigin(lat, lng, label, options = {}) {
   originMarker.setLatLng([lat, lng]).bindPopup(label).openPopup();
-  map.setView([lat, lng], 9);
+
+  if (options.recenter !== false) {
+    map.setView([lat, lng], 10);
+  }
 
   await refreshTravelTimeOverlay(lat, lng);
 }
@@ -195,23 +214,28 @@ async function refreshTravelTimeOverlay(lat, lng) {
   const mode = document.querySelector('input[name="travel-mode"]:checked').value;
   const traffic = document.querySelector('input[name="traffic-mode"]:checked').value;
   const provider = getTravelTimeProvider();
+  const requestedMinutes = getSelectedTimeBands();
 
   setStatus(`Loading ${provider} ${mode} bands...`);
 
   try {
+    const minutes = getProviderTimeBands(provider, mode, requestedMinutes);
     const result = await getTravelTimeOverlay({
       lat,
       lng,
       mode,
       traffic,
-      minutes: [10, 20, 30, 45, 60],
+      minutes,
+      requestedMinutes,
       provider,
     });
 
     renderTravelTimeOverlay(result);
+    fitMapToOverlay();
     setStatus(describeOverlayResult(result, mode, traffic));
   } catch (error) {
-    renderTravelTimeOverlay(getDemoOverlay({ lat, lng, mode, traffic, minutes: [10, 20, 30, 45, 60] }));
+    renderTravelTimeOverlay(getDemoOverlay({ lat, lng, mode, traffic, minutes: requestedMinutes }));
+    fitMapToOverlay();
     setStatus(`${error.message} Showing demo bands instead.`);
   }
 }
@@ -257,6 +281,7 @@ async function getOpenRouteServiceOverlay(request) {
   return {
     provider: "openrouteservice",
     type: "geojson",
+    requestedMinutes: request.requestedMinutes,
     geojson: styleIsochroneGeoJson(geojson),
   };
 }
@@ -277,6 +302,7 @@ function getDemoOverlay(request) {
     mode: request.mode,
     traffic: request.traffic,
     minutes: request.minutes,
+    requestedMinutes: request.requestedMinutes || request.minutes,
   };
 }
 
@@ -386,7 +412,45 @@ function getBandColor(minutes) {
     return bandColors[45];
   }
 
-  return bandColors[60];
+  if (minutes <= 60) {
+    return bandColors[60];
+  }
+
+  if (minutes <= 90) {
+    return bandColors[90];
+  }
+
+  if (minutes <= 120) {
+    return bandColors[120];
+  }
+
+  return bandColors[180];
+}
+
+function getSelectedTimeBands() {
+  const maxMinutes = Number(maxTimeSelect.value);
+  const allBands = [10, 20, 30, 45, 60, 90, 120, 180];
+
+  return allBands.filter((minutes) => minutes <= maxMinutes);
+}
+
+function getProviderTimeBands(provider, mode, requestedMinutes) {
+  if (provider === "openrouteservice" && mode === "drive") {
+    return requestedMinutes.filter((minutes) => minutes <= ORS_MAX_DRIVING_MINUTES);
+  }
+
+  return requestedMinutes;
+}
+
+function fitMapToOverlay() {
+  const bounds = overlayLayer.getBounds();
+
+  if (bounds.isValid()) {
+    map.fitBounds(bounds, {
+      padding: [36, 36],
+      maxZoom: 11,
+    });
+  }
 }
 
 function getTravelTimeProvider() {
@@ -409,6 +473,11 @@ function setBaseMapStyle(styleId) {
 function describeOverlayResult(result, mode, traffic) {
   if (result.provider === "demo") {
     return `Showing demo ${mode} bands. Paste an OpenRouteService key for real isochrones.`;
+  }
+
+  const requestedMax = Math.max(...(result.requestedMinutes || []));
+  if (mode === "drive" && requestedMax > ORS_MAX_DRIVING_MINUTES) {
+    return `Showing OpenRouteService drive isochrones up to 60 minutes. Hosted ORS currently caps driving isochrones at 1 hour.`;
   }
 
   if (traffic !== "traffic-free") {
