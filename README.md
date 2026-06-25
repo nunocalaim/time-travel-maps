@@ -41,7 +41,7 @@ It currently uses:
 - A provider-shaped travel-time boundary in `script.js`, currently set to `demo`.
 - A small map-style selector for detailed, light, and dark base maps.
 - Optional OpenRouteService isochrones when an API key is pasted into the local page.
-- Click-to-set origin refinement on the map.
+- Right-click-to-set origin refinement on the map.
 - Configurable maximum travel time for demo bands and provider requests.
 
 If tiles appear scrambled or misaligned, the Leaflet stylesheet is probably blocked by the browser or CDN. The app includes local fallback layout rules in `styles.css`, so refresh the page after pulling the latest files.

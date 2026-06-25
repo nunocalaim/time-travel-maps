@@ -226,3 +226,25 @@ Open Questions:
 Next:
 - Test the click-to-set-origin interaction in the browser.
 - Decide whether larger real driving maps should use Google, Mapbox, another provider, or self-hosted routing.
+
+## 2026-06-25 - Right-click origin selection
+
+Participants:
+- Human: Nuno
+- AI: Codex
+
+Goal:
+- Avoid changing the origin with ordinary map clicks.
+
+Decisions:
+- Use right-click/context menu on the map to select a new starting point.
+
+Tried:
+- Changed the map interaction from `click` to `contextmenu`.
+- Updated the UI hint and README wording.
+
+Open Questions:
+- Should mobile use a long-press or a dedicated "set origin" mode?
+
+Next:
+- Test right-click origin selection in the browser.

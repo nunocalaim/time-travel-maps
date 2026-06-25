@@ -131,7 +131,7 @@ maxTimeSelect.addEventListener("change", async () => {
   await refreshTravelTimeOverlay(center.lat, center.lng);
 });
 
-map.on("click", async (event) => {
+map.on("contextmenu", async (event) => {
   const { lat, lng } = event.latlng;
   input.value = `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
   await setOrigin(lat, lng, "selected map point", { recenter: false });
