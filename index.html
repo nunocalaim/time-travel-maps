@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Time to X</title>
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-p4NxAoJBhIINfQ7PjR29h2d3qlQlJtCwPU1pje6N0lM="
+      crossorigin=""
+    >
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="control-panel" aria-label="Map controls">
+        <div>
+          <p class="eyebrow">Time to X</p>
+          <h1>Giftable travel-time maps</h1>
+          <p class="intro">
+            Choose a place and preview color-coded reachability bands. This first version uses
+            demo rings; real routing and traffic will come after we choose a provider.
+          </p>
+        </div>
+
+        <form id="location-form" class="location-form">
+          <label for="location-input">Starting location</label>
+          <div class="input-row">
+            <input
+              id="location-input"
+              name="location"
+              type="search"
+              placeholder="Try: Coimbra, Portugal"
+              autocomplete="street-address"
+            >
+            <button type="submit">Search</button>
+          </div>
+          <button id="use-location" class="secondary-button" type="button">Use my location</button>
+        </form>
+
+        <fieldset>
+          <legend>Travel mode</legend>
+          <label>
+            <input type="radio" name="travel-mode" value="drive" checked>
+            Drive
+          </label>
+          <label>
+            <input type="radio" name="travel-mode" value="walk">
+            Walk
+          </label>
+        </fieldset>
+
+        <fieldset>
+          <legend>Time assumption</legend>
+          <label>
+            <input type="radio" name="traffic-mode" value="traffic-free" checked>
+            No traffic
+          </label>
+          <label>
+            <input type="radio" name="traffic-mode" value="typical">
+            Typical traffic
+          </label>
+          <label>
+            <input type="radio" name="traffic-mode" value="live" disabled>
+            Live traffic later
+          </label>
+        </fieldset>
+
+        <div class="legend" aria-label="Travel time legend">
+          <h2>Demo bands</h2>
+          <div><span class="swatch band-10"></span> 10 min</div>
+          <div><span class="swatch band-20"></span> 20 min</div>
+          <div><span class="swatch band-30"></span> 30 min</div>
+          <div><span class="swatch band-45"></span> 45 min</div>
+          <div><span class="swatch band-60"></span> 60 min</div>
+        </div>
+
+        <p id="status" class="status" role="status">Showing a demo map centered on Coimbra.</p>
+      </section>
+
+      <section class="map-panel" aria-label="Travel-time map">
+        <div id="map"></div>
+      </section>
+    </main>
+
+    <script
+      src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+      integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+      crossorigin=""
+    ></script>
+    <script src="script.js"></script>
+  </body>
+</html>
