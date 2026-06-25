@@ -269,3 +269,29 @@ Open Questions:
 
 Next:
 - Refresh the page and confirm the server no longer reports a missing favicon.
+
+## 2026-06-25 - Browser PDF export
+
+Participants:
+- Human: Nuno
+- AI: Codex
+
+Goal:
+- Add a first export path for gift maps.
+
+Decisions:
+- Start with browser print-to-PDF rather than a PDF generation library.
+- Use a print stylesheet that prioritizes the map and keeps a compact title/legend panel.
+
+Tried:
+- Added an Export PDF button.
+- Added print CSS for A4 landscape output.
+
+Open Questions:
+- Should future export generate a PNG, PDF, or both?
+- Should print exports include editable title/subtitle text for the recipient?
+- Do provider and tile-source terms allow the intended gift-map use at scale?
+
+Next:
+- Test browser Save as PDF output.
+- Add a custom map title before generating polished gift maps.

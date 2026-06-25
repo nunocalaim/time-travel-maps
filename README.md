@@ -43,6 +43,7 @@ It currently uses:
 - Optional OpenRouteService isochrones when an API key is pasted into the local page.
 - Right-click-to-set origin refinement on the map.
 - Configurable maximum travel time for demo bands and provider requests.
+- Browser PDF export through the print dialog.
 
 If tiles appear scrambled or misaligned, the Leaflet stylesheet is probably blocked by the browser or CDN. The app includes local fallback layout rules in `styles.css`, so refresh the page after pulling the latest files.
 
@@ -51,6 +52,8 @@ The colored circles are placeholders. They are not real travel-time data yet; th
 To try real isochrones, create an OpenRouteService API key and paste it into the page. The key is stored only in `sessionStorage` for the current browser session, not committed to the repo.
 
 Hosted OpenRouteService currently limits driving isochrones to 1 hour. Larger demo bands can be previewed locally, and larger real driving maps will need another provider or a self-hosted routing setup.
+
+Use **Export PDF** to open the browser print dialog, then choose "Save as PDF".
 
 Later:
 

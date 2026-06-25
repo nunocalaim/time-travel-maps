@@ -380,3 +380,72 @@ fieldset label {
     min-height: 68vh;
   }
 }
+
+@media print {
+  @page {
+    size: A4 landscape;
+    margin: 0;
+  }
+
+  body {
+    background: #ffffff;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  .app-shell {
+    display: block;
+    min-height: auto;
+  }
+
+  .map-panel,
+  #map {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100vh;
+    min-height: 0;
+  }
+
+  .control-panel {
+    position: fixed;
+    top: 16px;
+    left: 16px;
+    z-index: 1200;
+    width: 280px;
+    max-height: calc(100vh - 32px);
+    padding: 16px;
+    gap: 14px;
+    overflow: hidden;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: rgb(255 255 255 / 0.94);
+  }
+
+  .intro,
+  .location-form,
+  fieldset,
+  .select-control,
+  #export-pdf,
+  .status,
+  .hint,
+  .leaflet-control-zoom {
+    display: none;
+  }
+
+  h1 {
+    font-size: 1.55rem;
+  }
+
+  .legend {
+    gap: 5px;
+  }
+
+  .legend h2 {
+    font-size: 0.95rem;
+  }
+
+  .legend div {
+    font-size: 0.82rem;
+  }
+}

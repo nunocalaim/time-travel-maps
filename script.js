@@ -46,6 +46,7 @@ const orsApiKeyInput = document.querySelector("#ors-api-key");
 const clearApiKeyButton = document.querySelector("#clear-api-key");
 const mapStyleSelect = document.querySelector("#map-style");
 const maxTimeSelect = document.querySelector("#max-time");
+const exportPdfButton = document.querySelector("#export-pdf");
 const useLocationButton = document.querySelector("#use-location");
 const statusEl = document.querySelector("#status");
 
@@ -124,6 +125,11 @@ document.querySelectorAll('input[name="traffic-mode"]').forEach((control) => {
 
 mapStyleSelect.addEventListener("change", () => {
   setBaseMapStyle(mapStyleSelect.value);
+});
+
+exportPdfButton.addEventListener("click", () => {
+  map.invalidateSize();
+  window.print();
 });
 
 maxTimeSelect.addEventListener("change", async () => {
