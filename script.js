@@ -862,14 +862,12 @@ function resizeExportFrame(corner, latlng) {
 
   const oppositePoint = map.latLngToContainerPoint(oppositeCorner);
   const draggedPoint = map.latLngToContainerPoint(latlng);
-  const width = Math.max(180, Math.abs(draggedPoint.x - oppositePoint.x));
-  const height = width / 1.414;
-  const xDirection = corner === "northWest" || corner === "southWest" ? -1 : 1;
-  const yDirection = corner === "northWest" || corner === "northEast" ? -1 : 1;
-  const adjustedPoint = L.point(
-    oppositePoint.x + xDirection * width,
-    oppositePoint.y + yDirection * height
-  );
+  const minSize = 120;
+  const xDirection = draggedPoint.x < oppositePoint.x ? -1 : 1;
+  const yDirection = draggedPoint.y < oppositePoint.y ? -1 : 1;
+  const width = Math.max(minSize, Math.abs(draggedPoint.x - oppositePoint.x));
+  const height = Math.max(minSize, Math.abs(draggedPoint.y - oppositePoint.y));
+  const adjustedPoint = L.point(oppositePoint.x + xDirection * width, oppositePoint.y + yDirection * height);
 
   exportFrame.setBounds(L.latLngBounds(
     oppositeCorner,

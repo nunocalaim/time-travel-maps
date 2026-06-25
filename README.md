@@ -46,7 +46,7 @@ It currently uses:
 - Browser PDF export through a selectable print area.
 - Explicit OpenRouteService/OpenStreetMap attribution in the UI and print layout.
 - Draggable export frame for choosing the PDF area.
-- Resizable A4-landscape export frame handles.
+- Freely resizable export frame handles.
 - Overlay transparency control.
 
 If tiles appear scrambled or misaligned, the Leaflet stylesheet is probably blocked by the browser or CDN. The app includes local fallback layout rules in `styles.css`, so refresh the page after pulling the latest files.

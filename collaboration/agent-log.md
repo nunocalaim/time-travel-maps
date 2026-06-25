@@ -380,3 +380,26 @@ Open Questions:
 
 Next:
 - Test export selection in the browser and confirm it produces one page.
+
+## 2026-06-26 - Freeform export frame and visible attribution
+
+Participants:
+- Human: Nuno
+- AI: Codex
+
+Goal:
+- Remove the fixed export aspect ratio and make attribution visible on the map.
+
+Decisions:
+- Let the export frame resize freely instead of preserving A4 landscape ratio.
+- Add attribution directly over the map in addition to the side panel.
+
+Tried:
+- Changed resize-handle math to allow independent width and height.
+- Added a bottom-right map attribution overlay.
+
+Open Questions:
+- Should export offer optional presets later, such as A4 landscape, A4 portrait, square, or 16:9?
+
+Next:
+- Test export composition with freeform frame resizing.
