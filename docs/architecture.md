@@ -10,6 +10,7 @@ This is an early architecture sketch, not a final design.
 - Travel-time provider: calculates travel times or isochrone polygons.
 - Overlay generator: converts provider results into color-coded map layers.
 - Cache or storage layer: stores generated results where terms allow.
+- Map style provider: supplies base map styles such as detailed, light print, dark, terrain, or future custom vector styles.
 
 ## Data Flow
 
@@ -36,4 +37,4 @@ This is an early architecture sketch, not a final design.
 - True isochrone polygons are easier for overlays than calculating many point-to-point routes.
 - Country-scale maps may need lower-resolution overlays for performance and API cost.
 - API terms may restrict caching, storing, or publishing generated data.
-
+- Raster tile styles are easy to switch, but fine-grained styling eventually points toward vector tiles and MapLibre GL JS or Mapbox GL JS.

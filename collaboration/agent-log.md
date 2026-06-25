@@ -137,3 +137,34 @@ Open Questions:
 Next:
 - Refresh the local page and verify the circles remain visible over the tiles.
 - Choose and test a real isochrone provider.
+
+## 2026-06-25 - Real-data experiment branch
+
+Participants:
+- Human: Nuno
+- AI: Codex
+
+Goal:
+- Start moving from placeholder rings toward real travel-time data while keeping development paused enough to make deliberate provider choices.
+
+Decisions:
+- Create `experiment-real-isochrones` for real-data work.
+- Prefer provider-generated isochrone polygons over destination lattice sampling for the first real implementation.
+- Avoid road-type-only travel-time calculations because they would be too approximate for a product that promises real usefulness.
+- Keep demo rings as a no-key fallback.
+- Add simple map style presets now and leave fine-grained vector styling for a later MapLibre or Mapbox phase.
+
+Tried:
+- Added a provider-shaped travel-time boundary to `script.js`.
+- Added a map style dropdown with detailed, light, and dark raster tile styles.
+- Added a branch note and a proposed decision record for real travel-time data.
+
+Open Questions:
+- Which provider should be tested first: Google Isochrones, Mapbox Isochrone, OpenRouteService, GraphHopper, or another option?
+- What provider terms allow gift-map export and cached results?
+- Should the first real integration live entirely in the browser or behind a tiny backend to protect API keys?
+
+Next:
+- Choose the first provider to trial.
+- Add `.env.example` and a no-secret configuration path if a provider key is needed.
+- Replace demo rings with provider GeoJSON when credentials are available.

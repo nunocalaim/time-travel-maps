@@ -17,10 +17,12 @@
 
 ## Phase 2 - Real Isochrones
 
-- Choose a travel-time provider.
+- Choose a travel-time provider. In progress on `experiment-real-isochrones`.
 - Connect the frontend to real driving-time polygons.
 - Support a few time bands.
 - Add basic loading and error states.
+- Keep a demo fallback when no API key is configured.
+- Check provider terms for caching, sharing, and gift-map export.
 
 ## Phase 3 - Gift Map
 

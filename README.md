@@ -38,6 +38,8 @@ It currently uses:
 - CARTO raster map tiles using OpenStreetMap data.
 - Nominatim for public location search.
 - Demo travel-time rings, not real routing or traffic data yet.
+- A provider-shaped travel-time boundary in `script.js`, currently set to `demo`.
+- A small map-style selector for detailed, light, and dark base maps.
 
 If tiles appear scrambled or misaligned, the Leaflet stylesheet is probably blocked by the browser or CDN. The app includes local fallback layout rules in `styles.css`, so refresh the page after pulling the latest files.
 

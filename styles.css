@@ -182,7 +182,8 @@ body {
 }
 
 button,
-input {
+input,
+select {
   font: inherit;
 }
 
@@ -244,6 +245,20 @@ input[type="search"] {
   border: 1px solid var(--line);
   border-radius: 8px;
   padding: 12px 13px;
+}
+
+.select-control {
+  display: grid;
+  gap: 8px;
+}
+
+select {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 13px;
+  color: var(--ink);
+  background: #ffffff;
 }
 
 button {
