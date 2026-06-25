@@ -46,7 +46,9 @@ const orsApiKeyInput = document.querySelector("#ors-api-key");
 const clearApiKeyButton = document.querySelector("#clear-api-key");
 const mapStyleSelect = document.querySelector("#map-style");
 const maxTimeSelect = document.querySelector("#max-time");
+const overlayOpacityInput = document.querySelector("#overlay-opacity");
 const exportPdfButton = document.querySelector("#export-pdf");
+const resetExportFrameButton = document.querySelector("#reset-export-frame");
 const useLocationButton = document.querySelector("#use-location");
 const statusEl = document.querySelector("#status");
 
@@ -60,6 +62,9 @@ let baseLayer = createBaseLayer(mapStyles.voyager).addTo(map);
 
 let overlayLayer = L.featureGroup().addTo(map);
 let originMarker = createOriginMarker(DEFAULT_PLACE.lat, DEFAULT_PLACE.lng, DEFAULT_PLACE.label).addTo(map);
+let exportFrame = createExportFrame();
+let pendingPrintView = null;
+let dragState = null;
 
 input.value = DEFAULT_PLACE.label;
 orsApiKeyInput.value = sessionStorage.getItem(ORS_KEY_STORAGE) || "";
@@ -128,8 +133,7 @@ mapStyleSelect.addEventListener("change", () => {
 });
 
 exportPdfButton.addEventListener("click", () => {
-  map.invalidateSize();
-  window.print();
+  exportSelectedFrameToPdf();
 });
 
 maxTimeSelect.addEventListener("change", async () => {
@@ -137,10 +141,43 @@ maxTimeSelect.addEventListener("change", async () => {
   await refreshTravelTimeOverlay(center.lat, center.lng);
 });
 
+overlayOpacityInput.addEventListener("input", () => {
+  updateOverlayOpacity();
+});
+
+resetExportFrameButton.addEventListener("click", () => {
+  resetExportFrame();
+});
+
+window.addEventListener("afterprint", () => {
+  if (!pendingPrintView) {
+    return;
+  }
+
+  map.setView(pendingPrintView.center, pendingPrintView.zoom, { animate: false });
+  pendingPrintView = null;
+});
+
+document.addEventListener("mouseup", () => {
+  finishExportFrameDrag();
+});
+
 map.on("contextmenu", async (event) => {
   const { lat, lng } = event.latlng;
   input.value = `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
   await setOrigin(lat, lng, "selected map point", { recenter: false });
+});
+
+map.on("mousemove", (event) => {
+  if (!dragState) {
+    return;
+  }
+
+  moveExportFrame(event.latlng);
+});
+
+map.on("mouseup", () => {
+  finishExportFrameDrag();
 });
 
 orsApiKeyInput.addEventListener("change", async () => {
@@ -338,7 +375,7 @@ function drawGeoJsonBands(geojson) {
       return {
         color: properties.color || properties.fillColor || "#1f7a8c",
         fillColor: properties.fillColor || properties.fill || "#1f7a8c",
-        fillOpacity: properties.fillOpacity || properties["fill-opacity"] || 0.22,
+        fillOpacity: getOverlayOpacity(),
         opacity: properties.opacity || 0.85,
         weight: 2,
       };
@@ -360,7 +397,6 @@ function styleIsochroneGeoJson(geojson) {
           minutes,
           color,
           fillColor: color,
-          fillOpacity: 0.22,
         },
       };
     }),
@@ -441,7 +477,7 @@ function drawDemoBands(lat, lng, mode, minutes = [1, 5, 10, 15, 20, 30, 45, 60])
     L.polygon(createDemoRing(lat, lng, previousMinutes * minutesToMeters, minutes * minutesToMeters), {
       color: getBandColor(minutes),
       fillColor: getBandColor(minutes),
-      fillOpacity: 0.28,
+      fillOpacity: getOverlayOpacity(),
       fillRule: "evenodd",
       opacity: 0.85,
       weight: 2,
@@ -552,6 +588,10 @@ function fitMapToOverlay() {
       maxZoom: 11,
     });
   }
+
+  window.setTimeout(() => {
+    resetExportFrame();
+  }, 0);
 }
 
 function getTravelTimeProvider() {
@@ -590,4 +630,113 @@ function describeOverlayResult(result, mode, traffic) {
 
 function setStatus(message) {
   statusEl.textContent = message;
+}
+
+function getOverlayOpacity() {
+  return Number(overlayOpacityInput.value) / 100;
+}
+
+function updateOverlayOpacity() {
+  overlayLayer.eachLayer((layer) => {
+    if (typeof layer.setStyle === "function") {
+      layer.setStyle({ fillOpacity: getOverlayOpacity() });
+    }
+  });
+}
+
+function createExportFrame() {
+  const rectangle = L.rectangle(getDefaultExportFrameBounds(), {
+    className: "export-frame",
+    color: "#13505b",
+    fillColor: "#ffffff",
+    fillOpacity: 0.04,
+    interactive: true,
+    opacity: 0.95,
+    weight: 3,
+    dashArray: "10 7",
+  }).addTo(map);
+
+  rectangle.on("mousedown", (event) => {
+    L.DomEvent.stopPropagation(event);
+    startExportFrameDrag(event.latlng);
+  });
+
+  return rectangle;
+}
+
+function getDefaultExportFrameBounds() {
+  const center = map.getCenter();
+  const size = map.getSize();
+  const width = Math.max(260, size.x * 0.58);
+  const height = width / 1.414;
+  const centerPoint = map.latLngToContainerPoint(center);
+  const northWest = map.containerPointToLatLng([
+    centerPoint.x - width / 2,
+    centerPoint.y - height / 2,
+  ]);
+  const southEast = map.containerPointToLatLng([
+    centerPoint.x + width / 2,
+    centerPoint.y + height / 2,
+  ]);
+
+  return L.latLngBounds(northWest, southEast);
+}
+
+function resetExportFrame() {
+  exportFrame.setBounds(getDefaultExportFrameBounds());
+}
+
+function startExportFrameDrag(latlng) {
+  dragState = {
+    startLatLng: latlng,
+    startBounds: exportFrame.getBounds(),
+  };
+
+  map.dragging.disable();
+  setStatus("Drag the export frame to choose the PDF area.");
+}
+
+function moveExportFrame(latlng) {
+  const latDelta = latlng.lat - dragState.startLatLng.lat;
+  const lngDelta = latlng.lng - dragState.startLatLng.lng;
+  const bounds = dragState.startBounds;
+
+  exportFrame.setBounds(L.latLngBounds(
+    [
+      bounds.getSouth() + latDelta,
+      bounds.getWest() + lngDelta,
+    ],
+    [
+      bounds.getNorth() + latDelta,
+      bounds.getEast() + lngDelta,
+    ]
+  ));
+}
+
+function finishExportFrameDrag() {
+  if (!dragState) {
+    return;
+  }
+
+  dragState = null;
+  map.dragging.enable();
+  setStatus("Export frame moved. Use Export PDF to print that area.");
+}
+
+function exportSelectedFrameToPdf() {
+  pendingPrintView = {
+    center: map.getCenter(),
+    zoom: map.getZoom(),
+  };
+
+  map.fitBounds(exportFrame.getBounds(), {
+    animate: false,
+    padding: [0, 0],
+  });
+  map.invalidateSize();
+  setStatus("Preparing selected export area...");
+
+  window.setTimeout(() => {
+    window.print();
+  }, 250);
 }

@@ -322,3 +322,31 @@ Open Questions:
 
 Next:
 - Test real ORS polygons visually and verify the inner bands no longer look overly opaque.
+
+## 2026-06-26 - Export frame and overlay opacity
+
+Participants:
+- Human: Nuno
+- AI: Codex
+
+Goal:
+- Make PDF export controllable and allow visual tuning of the travel-time overlay.
+
+Decisions:
+- Add a draggable A4-landscape export frame on top of the map.
+- Fit the map to the export frame before opening the browser print dialog.
+- Hide the export frame from the printed PDF.
+- Add an overlay transparency slider that updates demo and real isochrone layers.
+
+Tried:
+- Added an export frame rectangle with drag behavior.
+- Added a reset button for the export frame.
+- Added an overlay transparency range input.
+- Restored the previous map view after printing.
+
+Open Questions:
+- Should the export frame become resizable, not just draggable?
+- Should exports eventually use canvas/image generation instead of browser print?
+
+Next:
+- Test the PDF output and adjust the print layout if browser rendering still feels off.

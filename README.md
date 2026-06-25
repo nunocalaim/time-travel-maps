@@ -45,6 +45,8 @@ It currently uses:
 - Configurable maximum travel time for demo bands and provider requests.
 - Browser PDF export through the print dialog.
 - Explicit OpenRouteService/OpenStreetMap attribution in the UI and print layout.
+- Draggable export frame for choosing the PDF area.
+- Overlay transparency control.
 
 If tiles appear scrambled or misaligned, the Leaflet stylesheet is probably blocked by the browser or CDN. The app includes local fallback layout rules in `styles.css`, so refresh the page after pulling the latest files.
 
@@ -55,6 +57,8 @@ To try real isochrones, create an OpenRouteService API key and paste it into the
 Hosted OpenRouteService currently limits driving isochrones to 1 hour. Larger demo bands can be previewed locally, and larger real driving maps will need another provider or a self-hosted routing setup.
 
 Use **Export PDF** to open the browser print dialog, then choose "Save as PDF".
+
+Drag the blue export frame over the map before exporting. The app fits the map to that selected area before opening the print dialog.
 
 The default bands are now 1, 5, 10, 15, 20, 30, 45, and 60 minutes.
 

@@ -100,7 +100,20 @@
           </select>
         </label>
 
+        <label class="range-control" for="overlay-opacity">
+          Overlay transparency
+          <input
+            id="overlay-opacity"
+            name="overlay-opacity"
+            type="range"
+            min="10"
+            max="70"
+            value="28"
+          >
+        </label>
+
         <button id="export-pdf" type="button">Export PDF</button>
+        <button id="reset-export-frame" class="secondary-button" type="button">Reset export frame</button>
 
         <div class="legend" aria-label="Travel time legend">
           <h2>Travel-time bands</h2>
@@ -115,7 +128,7 @@
         </div>
 
         <p id="status" class="status" role="status">Showing a demo map centered on Coimbra.</p>
-        <p class="hint">Right-click the map to set a new starting point.</p>
+        <p class="hint">Right-click the map to set a starting point. Drag the blue frame to choose the PDF area.</p>
         <p class="attribution">
           © openrouteservice.org by HeiGIT | Map data © OpenStreetMap contributors
         </p>
