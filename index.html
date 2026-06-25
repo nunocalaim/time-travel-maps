@@ -55,11 +55,10 @@
         <label class="select-control" for="max-time">
           Maximum travel time
           <select id="max-time" name="max-time">
+            <option value="15">15 minutes</option>
             <option value="30">30 minutes</option>
+            <option value="45">45 minutes</option>
             <option value="60" selected>1 hour</option>
-            <option value="90">1.5 hours</option>
-            <option value="120">2 hours</option>
-            <option value="180">3 hours</option>
           </select>
         </label>
 
@@ -104,19 +103,22 @@
         <button id="export-pdf" type="button">Export PDF</button>
 
         <div class="legend" aria-label="Travel time legend">
-          <h2>Demo bands</h2>
+          <h2>Travel-time bands</h2>
+          <div><span class="swatch band-1"></span> 1 min</div>
+          <div><span class="swatch band-5"></span> 5 min</div>
           <div><span class="swatch band-10"></span> 10 min</div>
+          <div><span class="swatch band-15"></span> 15 min</div>
           <div><span class="swatch band-20"></span> 20 min</div>
           <div><span class="swatch band-30"></span> 30 min</div>
           <div><span class="swatch band-45"></span> 45 min</div>
           <div><span class="swatch band-60"></span> 60 min</div>
-          <div><span class="swatch band-90"></span> 90 min</div>
-          <div><span class="swatch band-120"></span> 120 min</div>
-          <div><span class="swatch band-180"></span> 180 min</div>
         </div>
 
         <p id="status" class="status" role="status">Showing a demo map centered on Coimbra.</p>
         <p class="hint">Right-click the map to set a new starting point.</p>
+        <p class="attribution">
+          © openrouteservice.org by HeiGIT | Map data © OpenStreetMap contributors
+        </p>
       </section>
 
       <section class="map-panel" aria-label="Travel-time map">

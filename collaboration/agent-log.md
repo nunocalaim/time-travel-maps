@@ -295,3 +295,30 @@ Open Questions:
 Next:
 - Test browser Save as PDF output.
 - Add a custom map title before generating polished gift maps.
+
+## 2026-06-25 - Attribution and banded overlays
+
+Participants:
+- Human: Nuno
+- AI: Codex
+
+Goal:
+- Add required ORS attribution and make travel-time bands easier to read.
+
+Decisions:
+- Show OpenRouteService/OpenStreetMap attribution in the app and print layout.
+- Use non-linear bands: 1, 5, 10, 15, 20, 30, 45, and 60 minutes.
+- Render demo bands as rings instead of stacked filled circles.
+- Convert nested isochrone polygons into approximate band polygons by adding the previous contour as a hole.
+
+Tried:
+- Added attribution text below the map controls.
+- Updated colors, legend, max-time choices, and selected-band logic.
+- Added a simple GeoJSON banding transform for nested ORS polygons.
+
+Open Questions:
+- Do all ORS responses remain nested enough for the simple hole approach to be reliable?
+- Should we use Turf.js later for robust polygon difference operations?
+
+Next:
+- Test real ORS polygons visually and verify the inner bands no longer look overly opaque.

@@ -5,14 +5,14 @@ const DEFAULT_PLACE = {
 };
 
 const bandColors = {
+  1: "#0b6e4f",
+  5: "#1a936f",
   10: "#2fbf71",
-  20: "#8bd346",
+  15: "#8bd346",
+  20: "#d6d94f",
   30: "#f5c542",
   45: "#f28f3b",
   60: "#d94f45",
-  90: "#b84665",
-  120: "#7f4f9a",
-  180: "#4a4e9d",
 };
 
 const ORS_ENDPOINT = "https://api.openrouteservice.org/v2/isochrones";
@@ -329,9 +329,7 @@ function renderTravelTimeOverlay(result) {
 function drawGeoJsonBands(geojson) {
   overlayLayer.clearLayers();
 
-  const sortedFeatures = [...(geojson.features || [])].sort((a, b) => {
-    return getIsochroneMinutes(b) - getIsochroneMinutes(a);
-  });
+  const sortedFeatures = createBandedIsochroneFeatures(geojson.features || []);
 
   L.geoJSON({ ...geojson, features: sortedFeatures }, {
     style: (feature) => {
@@ -369,6 +367,61 @@ function styleIsochroneGeoJson(geojson) {
   };
 }
 
+function createBandedIsochroneFeatures(features) {
+  const sorted = [...features].sort((a, b) => {
+    return getIsochroneMinutes(a) - getIsochroneMinutes(b);
+  });
+
+  return sorted.map((feature, index) => {
+    const previous = sorted[index - 1];
+
+    if (!previous) {
+      return feature;
+    }
+
+    return {
+      ...feature,
+      geometry: subtractPreviousIsochrone(feature.geometry, previous.geometry),
+    };
+  }).sort((a, b) => {
+    return getIsochroneMinutes(b) - getIsochroneMinutes(a);
+  });
+}
+
+function subtractPreviousIsochrone(geometry, previousGeometry) {
+  if (!geometry || !previousGeometry) {
+    return geometry;
+  }
+
+  if (geometry.type === "Polygon" && previousGeometry.type === "Polygon") {
+    return {
+      ...geometry,
+      coordinates: addHolesToPolygon(geometry.coordinates, [previousGeometry.coordinates[0]]),
+    };
+  }
+
+  if (geometry.type === "MultiPolygon" && previousGeometry.type === "MultiPolygon") {
+    const previousHoles = previousGeometry.coordinates.map((polygon) => polygon[0]);
+
+    return {
+      ...geometry,
+      coordinates: geometry.coordinates.map((polygon) => addHolesToPolygon(polygon, previousHoles)),
+    };
+  }
+
+  return geometry;
+}
+
+function addHolesToPolygon(polygonCoordinates, holes) {
+  const existingHoles = polygonCoordinates.slice(1);
+
+  return [
+    polygonCoordinates[0],
+    ...existingHoles,
+    ...holes,
+  ];
+}
+
 function getIsochroneMinutes(feature) {
   const properties = feature.properties || {};
   const seconds = properties.value || properties.contour || properties.time || 0;
@@ -376,22 +429,64 @@ function getIsochroneMinutes(feature) {
   return Math.round(seconds / 60);
 }
 
-function drawDemoBands(lat, lng, mode, minutes = [10, 20, 30, 45, 60]) {
+function drawDemoBands(lat, lng, mode, minutes = [1, 5, 10, 15, 20, 30, 45, 60]) {
   overlayLayer.clearLayers();
 
   const minutesToMeters = mode === "walk" ? 80 : 850;
-  const bands = [...minutes].sort((a, b) => b - a);
+  const bands = [...minutes].sort((a, b) => a - b);
 
-  bands.forEach((minutes) => {
-    L.circle([lat, lng], {
-      radius: minutes * minutesToMeters,
-      color: bandColors[minutes],
-      fillColor: bandColors[minutes],
-      fillOpacity: 0.18,
-      opacity: 0.8,
+  bands.forEach((minutes, index) => {
+    const previousMinutes = bands[index - 1] || 0;
+
+    L.polygon(createDemoRing(lat, lng, previousMinutes * minutesToMeters, minutes * minutesToMeters), {
+      color: getBandColor(minutes),
+      fillColor: getBandColor(minutes),
+      fillOpacity: 0.28,
+      fillRule: "evenodd",
+      opacity: 0.85,
       weight: 2,
     }).addTo(overlayLayer);
   });
+}
+
+function createDemoRing(lat, lng, innerRadiusMeters, outerRadiusMeters) {
+  const outer = createCircleCoordinates(lat, lng, outerRadiusMeters);
+
+  if (!innerRadiusMeters) {
+    return [outer];
+  }
+
+  const inner = createCircleCoordinates(lat, lng, innerRadiusMeters).reverse();
+
+  return [outer, inner];
+}
+
+function createCircleCoordinates(lat, lng, radiusMeters) {
+  const steps = 96;
+  const earthRadiusMeters = 6378137;
+  const latRadians = degreesToRadians(lat);
+  const coordinates = [];
+
+  for (let step = 0; step <= steps; step += 1) {
+    const angle = (step / steps) * Math.PI * 2;
+    const deltaLat = (radiusMeters * Math.sin(angle)) / earthRadiusMeters;
+    const deltaLng = (radiusMeters * Math.cos(angle)) / (earthRadiusMeters * Math.cos(latRadians));
+
+    coordinates.push([
+      lat + radiansToDegrees(deltaLat),
+      lng + radiansToDegrees(deltaLng),
+    ]);
+  }
+
+  return coordinates;
+}
+
+function degreesToRadians(degrees) {
+  return degrees * (Math.PI / 180);
+}
+
+function radiansToDegrees(radians) {
+  return radians * (180 / Math.PI);
 }
 
 function createBaseLayer(style) {
@@ -402,8 +497,20 @@ function createBaseLayer(style) {
 }
 
 function getBandColor(minutes) {
+  if (minutes <= 1) {
+    return bandColors[1];
+  }
+
+  if (minutes <= 5) {
+    return bandColors[5];
+  }
+
   if (minutes <= 10) {
     return bandColors[10];
+  }
+
+  if (minutes <= 15) {
+    return bandColors[15];
   }
 
   if (minutes <= 20) {
@@ -418,24 +525,12 @@ function getBandColor(minutes) {
     return bandColors[45];
   }
 
-  if (minutes <= 60) {
-    return bandColors[60];
-  }
-
-  if (minutes <= 90) {
-    return bandColors[90];
-  }
-
-  if (minutes <= 120) {
-    return bandColors[120];
-  }
-
-  return bandColors[180];
+  return bandColors[60];
 }
 
 function getSelectedTimeBands() {
   const maxMinutes = Number(maxTimeSelect.value);
-  const allBands = [10, 20, 30, 45, 60, 90, 120, 180];
+  const allBands = [1, 5, 10, 15, 20, 30, 45, 60];
 
   return allBands.filter((minutes) => minutes <= maxMinutes);
 }
