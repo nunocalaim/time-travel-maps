@@ -237,15 +237,6 @@ body:not(.sidebar-collapsed) .sidebar-toggle {
   background: var(--accent);
 }
 
-body.preparing-print .map-panel,
-body.preparing-print #map {
-  width: var(--export-page-width);
-  height: var(--export-page-height);
-  min-height: 0;
-  max-height: var(--export-page-height);
-  overflow: hidden;
-}
-
 .eyebrow {
   margin: 0 0 6px;
   color: var(--accent-strong);
@@ -561,9 +552,11 @@ fieldset label:has(input:disabled) {
   }
 
   body.print-crop #map {
-    inset: 0;
-    width: var(--export-page-width);
-    height: var(--export-page-height);
+    inset: auto;
+    left: var(--export-map-left);
+    top: var(--export-map-top);
+    width: var(--export-map-width);
+    height: var(--export-map-height);
   }
 
   body.print-crop .map-panel {

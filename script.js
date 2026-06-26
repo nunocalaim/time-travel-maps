@@ -175,24 +175,19 @@ window.addEventListener("afterprint", () => {
     return;
   }
 
-  const restoreView = pendingPrintView;
-
-  document.body.classList.remove("no-print-legend");
-  document.body.classList.remove("print-crop");
-  document.body.classList.remove("preparing-print");
-  clearPrintCropVars();
-  clearPrintPageStyle();
-  map.invalidateSize({ pan: false });
-  map.setView(restoreView.center, restoreView.zoom, { animate: false });
+  map.setView(pendingPrintView.center, pendingPrintView.zoom, { animate: false });
   map.invalidateSize();
   pendingPrintView = null;
   pendingPrintCrop = null;
+  document.body.classList.remove("no-print-legend");
+  document.body.classList.remove("print-crop");
+  clearPrintCropVars();
+  clearPrintPageStyle();
 });
 
 window.addEventListener("beforeprint", () => {
   if (pendingPrintCrop) {
     applyPrintCropVars(pendingPrintCrop);
-    map.invalidateSize({ pan: false });
   }
 });
 
@@ -1088,7 +1083,6 @@ function exportSelectedFrameToPdf() {
     return;
   }
 
-  const exportBounds = exportFrame.getBounds();
   pendingPrintView = {
     center: map.getCenter(),
     zoom: map.getZoom(),
@@ -1096,10 +1090,7 @@ function exportSelectedFrameToPdf() {
 
   document.body.classList.toggle("no-print-legend", !includeLegendInput.checked);
   setPrintCropFromExportFrame();
-  document.body.classList.add("preparing-print");
-  map.invalidateSize({ pan: false });
-  map.setView(exportBounds.getCenter(), pendingPrintView.zoom, { animate: false });
-  map.invalidateSize({ pan: false });
+  map.invalidateSize();
   setStatus("Preparing selected export area...");
 
   window.setTimeout(() => {
@@ -1108,9 +1099,10 @@ function exportSelectedFrameToPdf() {
 }
 
 function setPrintCropFromExportFrame() {
+  const mapSize = map.getSize();
   const crop = getExportFramePixelBounds();
 
-  pendingPrintCrop = crop;
+  pendingPrintCrop = { ...crop, mapWidth: mapSize.x, mapHeight: mapSize.y };
   applyPrintCropVars(pendingPrintCrop);
   document.body.classList.add("print-crop");
 }
@@ -1119,6 +1111,10 @@ function applyPrintCropVars(crop) {
   const root = document.documentElement;
 
   setPrintPageStyle(crop.width, crop.height);
+  root.style.setProperty("--export-map-width", `${crop.mapWidth}px`);
+  root.style.setProperty("--export-map-height", `${crop.mapHeight}px`);
+  root.style.setProperty("--export-map-left", `${-crop.left}px`);
+  root.style.setProperty("--export-map-top", `${-crop.top}px`);
   root.style.setProperty("--export-page-width", `${crop.width}px`);
   root.style.setProperty("--export-page-height", `${crop.height}px`);
 }
@@ -1142,6 +1138,10 @@ function getExportFramePixelBounds() {
 
 function clearPrintCropVars() {
   [
+    "--export-map-width",
+    "--export-map-height",
+    "--export-map-left",
+    "--export-map-top",
     "--export-page-width",
     "--export-page-height",
   ].forEach((property) => {
@@ -1160,8 +1160,7 @@ function setPrintPageStyle(width, height) {
       html,
       body,
       .app-shell,
-      .map-panel,
-      #map {
+      .map-panel {
         width: ${Math.round(width)}px;
         height: ${Math.round(height)}px;
         min-height: 0;
