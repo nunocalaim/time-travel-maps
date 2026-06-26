@@ -17,7 +17,10 @@ const bandColors = {
 
 const ORS_ENDPOINT = "https://api.openrouteservice.org/v2/isochrones";
 const ORS_KEY_STORAGE = "time-to-x:ors-api-key";
+const LAST_ORIGIN_STORAGE = "isochrones:last-origin";
+const SAVED_OVERLAYS_STORAGE = "isochrones:saved-overlays";
 const ORS_MAX_DRIVING_MINUTES = 60;
+const ZOOM_CLOSER_DELTA = Math.log2(1.45);
 
 const mapStyles = {
   voyager: {
@@ -42,9 +45,14 @@ const mapStyles = {
 
 const form = document.querySelector("#location-form");
 const input = document.querySelector("#location-input");
+const toggleSidebarButton = document.querySelector("#toggle-sidebar");
 const orsApiKeyInput = document.querySelector("#ors-api-key");
 const fetchRealDataButton = document.querySelector("#fetch-real-data");
+const saveOverlayButton = document.querySelector("#save-overlay");
 const clearApiKeyButton = document.querySelector("#clear-api-key");
+const savedOverlaysSelect = document.querySelector("#saved-overlays");
+const loadOverlayButton = document.querySelector("#load-overlay");
+const deleteOverlayButton = document.querySelector("#delete-overlay");
 const mapStyleSelect = document.querySelector("#map-style");
 const maxTimeSelect = document.querySelector("#max-time");
 const overlayOpacityInput = document.querySelector("#overlay-opacity");
@@ -56,28 +64,34 @@ const cancelExportButton = document.querySelector("#cancel-export");
 const useLocationButton = document.querySelector("#use-location");
 const statusEl = document.querySelector("#status");
 const printPageStyle = document.querySelector("#print-page-style");
+const initialPlace = getInitialPlace();
 
 const map = L.map("map", {
   zoomControl: false,
-}).setView([DEFAULT_PLACE.lat, DEFAULT_PLACE.lng], 10);
+  zoomSnap: 0.1,
+  zoomDelta: 0.5,
+}).setView([initialPlace.lat, initialPlace.lng], 10 + ZOOM_CLOSER_DELTA);
 
 L.control.zoom({ position: "bottomright" }).addTo(map);
 
 let baseLayer = createBaseLayer(mapStyles.voyager).addTo(map);
 
 let overlayLayer = L.featureGroup().addTo(map);
-let originMarker = createOriginMarker(DEFAULT_PLACE.lat, DEFAULT_PLACE.lng, DEFAULT_PLACE.label).addTo(map);
+let originMarker = createOriginMarker(initialPlace.lat, initialPlace.lng, initialPlace.label).addTo(map);
 let exportFrame = createExportFrame();
 let exportHandles = createExportHandles();
 let isExportMode = false;
 let useRealData = false;
+let currentOverlayResult = null;
+let currentOrigin = initialPlace;
 let pendingPrintView = null;
 let pendingPrintCrop = null;
 let dragState = null;
 
-input.value = DEFAULT_PLACE.label;
+input.value = initialPlace.label;
 orsApiKeyInput.value = sessionStorage.getItem(ORS_KEY_STORAGE) || "";
-refreshTravelTimeOverlay(DEFAULT_PLACE.lat, DEFAULT_PLACE.lng);
+refreshSavedOverlayList();
+refreshTravelTimeOverlay(initialPlace.lat, initialPlace.lng);
 
 form.addEventListener("submit", async (event) => {
   event.preventDefault();
@@ -101,6 +115,16 @@ form.addEventListener("submit", async (event) => {
   } catch (error) {
     setStatus("Location search failed. The public geocoder may be busy.");
   }
+});
+
+toggleSidebarButton.addEventListener("click", () => {
+  const collapsed = document.body.classList.toggle("sidebar-collapsed");
+  toggleSidebarButton.textContent = collapsed ? "Show controls" : "Hide controls";
+  toggleSidebarButton.setAttribute("aria-expanded", String(!collapsed));
+
+  window.setTimeout(() => {
+    map.invalidateSize();
+  }, 250);
 });
 
 useLocationButton.addEventListener("click", () => {
@@ -237,6 +261,18 @@ fetchRealDataButton.addEventListener("click", async () => {
   await refreshTravelTimeOverlay(center.lat, center.lng);
 });
 
+saveOverlayButton.addEventListener("click", () => {
+  saveCurrentOverlay();
+});
+
+loadOverlayButton.addEventListener("click", () => {
+  loadSelectedOverlay();
+});
+
+deleteOverlayButton.addEventListener("click", () => {
+  deleteSelectedOverlay();
+});
+
 clearApiKeyButton.addEventListener("click", async () => {
   invalidateRealData();
   orsApiKeyInput.value = "";
@@ -282,6 +318,8 @@ async function setOrigin(lat, lng, label, options = {}) {
     invalidateRealData();
   }
 
+  currentOrigin = { lat, lng, label };
+  saveLastOrigin(currentOrigin);
   originMarker.setLatLng([lat, lng]).bindPopup(label).openPopup();
 
   if (options.recenter !== false) {
@@ -322,12 +360,14 @@ async function refreshTravelTimeOverlay(lat, lng) {
       provider,
     });
 
+    currentOverlayResult = result;
     renderTravelTimeOverlay(result);
     fitMapToOverlay();
     setStatus(describeOverlayResult(result, mode, traffic));
   } catch (error) {
     useRealData = false;
-    renderTravelTimeOverlay(getDemoOverlay({ lat, lng, mode, traffic, minutes: requestedMinutes }));
+    currentOverlayResult = getDemoOverlay({ lat, lng, mode, traffic, minutes: requestedMinutes });
+    renderTravelTimeOverlay(currentOverlayResult);
     fitMapToOverlay();
     setStatus(`${error.message} Showing demo bands instead.`);
   }
@@ -397,6 +437,136 @@ function getDemoOverlay(request) {
     minutes: request.minutes,
     requestedMinutes: request.requestedMinutes || request.minutes,
   };
+}
+
+function getInitialPlace() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(LAST_ORIGIN_STORAGE));
+
+    if (saved && Number.isFinite(saved.lat) && Number.isFinite(saved.lng)) {
+      return {
+        label: saved.label || `${saved.lat.toFixed(5)}, ${saved.lng.toFixed(5)}`,
+        lat: saved.lat,
+        lng: saved.lng,
+      };
+    }
+  } catch (error) {
+    localStorage.removeItem(LAST_ORIGIN_STORAGE);
+  }
+
+  return DEFAULT_PLACE;
+}
+
+function saveLastOrigin(origin) {
+  localStorage.setItem(LAST_ORIGIN_STORAGE, JSON.stringify(origin));
+}
+
+function getSavedOverlays() {
+  try {
+    const overlays = JSON.parse(localStorage.getItem(SAVED_OVERLAYS_STORAGE)) || [];
+
+    return Array.isArray(overlays) ? overlays : [];
+  } catch (error) {
+    localStorage.removeItem(SAVED_OVERLAYS_STORAGE);
+    return [];
+  }
+}
+
+function setSavedOverlays(overlays) {
+  localStorage.setItem(SAVED_OVERLAYS_STORAGE, JSON.stringify(overlays));
+}
+
+function refreshSavedOverlayList() {
+  const overlays = getSavedOverlays();
+
+  savedOverlaysSelect.innerHTML = "";
+
+  if (!overlays.length) {
+    const option = document.createElement("option");
+    option.value = "";
+    option.textContent = "No saved overlays";
+    savedOverlaysSelect.append(option);
+    return;
+  }
+
+  overlays.forEach((overlay) => {
+    const option = document.createElement("option");
+    option.value = overlay.id;
+    option.textContent = overlay.name;
+    savedOverlaysSelect.append(option);
+  });
+}
+
+function saveCurrentOverlay() {
+  if (!currentOverlayResult || currentOverlayResult.type !== "geojson") {
+    setStatus("Fetch real isochrones before saving an overlay.");
+    return;
+  }
+
+  const overlays = getSavedOverlays();
+  const mode = document.querySelector('input[name="travel-mode"]:checked').value;
+  const maxMinutes = Number(maxTimeSelect.value);
+  const createdAt = new Date().toISOString();
+  const name = `${currentOrigin.label} - ${mode}, ${maxMinutes} min`;
+  const overlay = {
+    id: `overlay-${Date.now()}`,
+    name,
+    createdAt,
+    origin: currentOrigin,
+    mode,
+    traffic: document.querySelector('input[name="traffic-mode"]:checked').value,
+    maxMinutes,
+    result: currentOverlayResult,
+  };
+
+  overlays.unshift(overlay);
+  setSavedOverlays(overlays.slice(0, 20));
+  refreshSavedOverlayList();
+  savedOverlaysSelect.value = overlay.id;
+  setStatus(`Saved overlay: ${name}.`);
+}
+
+function loadSelectedOverlay() {
+  const overlay = getSavedOverlays().find((item) => item.id === savedOverlaysSelect.value);
+
+  if (!overlay) {
+    setStatus("Choose a saved overlay first.");
+    return;
+  }
+
+  useRealData = false;
+  currentOrigin = overlay.origin;
+  currentOverlayResult = overlay.result;
+  input.value = overlay.origin.label;
+  maxTimeSelect.value = String(overlay.maxMinutes);
+  const modeControl = document.querySelector(`input[name="travel-mode"][value="${overlay.mode}"]`);
+  const trafficControl = document.querySelector(`input[name="traffic-mode"][value="${overlay.traffic}"]`);
+
+  if (modeControl) {
+    modeControl.checked = true;
+  }
+
+  if (trafficControl) {
+    trafficControl.checked = true;
+  }
+  saveLastOrigin(overlay.origin);
+  originMarker.setLatLng([overlay.origin.lat, overlay.origin.lng]).bindPopup(overlay.origin.label).openPopup();
+  renderTravelTimeOverlay(overlay.result);
+  fitMapToOverlay();
+  setStatus(`Loaded saved overlay: ${overlay.name}.`);
+}
+
+function deleteSelectedOverlay() {
+  const selectedId = savedOverlaysSelect.value;
+
+  if (!selectedId) {
+    setStatus("Choose a saved overlay first.");
+    return;
+  }
+
+  setSavedOverlays(getSavedOverlays().filter((overlay) => overlay.id !== selectedId));
+  refreshSavedOverlayList();
+  setStatus("Saved overlay deleted.");
 }
 
 function renderTravelTimeOverlay(result) {
@@ -637,6 +807,7 @@ function fitMapToOverlay() {
       padding: [36, 36],
       maxZoom: 11,
     });
+    map.setZoom(Math.min(map.getZoom() + ZOOM_CLOSER_DELTA, 18), { animate: false });
   }
 
   window.setTimeout(() => {

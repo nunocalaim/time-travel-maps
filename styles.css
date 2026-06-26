@@ -193,6 +193,10 @@ select {
   min-height: 100vh;
 }
 
+body.sidebar-collapsed .app-shell {
+  grid-template-columns: 58px minmax(0, 1fr);
+}
+
 .control-panel {
   display: flex;
   flex-direction: column;
@@ -201,6 +205,27 @@ select {
   background: var(--surface);
   border-right: 1px solid var(--line);
   overflow-y: auto;
+}
+
+.sidebar-toggle {
+  width: fit-content;
+}
+
+body.sidebar-collapsed .control-panel {
+  padding: 12px 8px;
+  overflow: hidden;
+}
+
+body.sidebar-collapsed .control-panel > *:not(.sidebar-toggle) {
+  display: none;
+}
+
+body.sidebar-collapsed .sidebar-toggle {
+  width: 42px;
+  min-height: 132px;
+  padding: 10px 6px;
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
 }
 
 .eyebrow {
@@ -327,6 +352,10 @@ fieldset label {
   align-items: center;
   color: var(--muted);
   font-weight: 600;
+}
+
+fieldset label:has(input:disabled) {
+  opacity: 0.45;
 }
 
 .legend {

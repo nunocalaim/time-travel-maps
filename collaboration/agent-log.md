@@ -454,3 +454,33 @@ Open Questions:
 
 Next:
 - Test reload behavior and tall/narrow export selections.
+
+## 2026-06-26 - App naming, sidebar, and local overlay storage
+
+Participants:
+- Human: Nuno
+- AI: Codex
+
+Goal:
+- Polish core UI behavior and reduce repeated API usage.
+
+Decisions:
+- Rename the visible project to Isochrones.
+- Use "Travel-time maps" as the main app heading.
+- Make the control sidebar collapsible.
+- Remember the last starting location in local storage.
+- Allow fetched ORS overlays to be saved and loaded locally.
+- Keep live traffic visible but disabled.
+- Zoom fitted maps about 45 percent closer.
+
+Tried:
+- Added sidebar toggle controls and collapsed layout CSS.
+- Added local origin persistence.
+- Added saved overlay controls backed by `localStorage`.
+- Added closer zoom after overlay fitting.
+
+Open Questions:
+- Should saved overlays be exportable as files for sharing between browsers or collaborators?
+
+Next:
+- Test save/load with a real ORS response.

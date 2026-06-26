@@ -1,6 +1,6 @@
 # Overview
 
-Time to X explores a simple question:
+Isochrones explores a simple question:
 
 > From this place, what can I reach, and how long does it take?
 
@@ -18,4 +18,3 @@ As a person making a gift map, I want to enter a property or location and genera
 - Time bands: colored ranges such as 0-10, 10-20, 20-30, 30-45, and 45-60 minutes.
 - Overlay: the map layer that visualizes reachable areas.
 - Provider: the API or engine that calculates travel times.
-

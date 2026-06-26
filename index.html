@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Time to X</title>
+    <title>Isochrones</title>
     <link rel="icon" href="favicon.svg" type="image/svg+xml">
     <style id="print-page-style"></style>
     <link
@@ -17,9 +17,10 @@
   <body>
     <main class="app-shell">
       <section class="control-panel" aria-label="Map controls">
+        <button id="toggle-sidebar" class="sidebar-toggle" type="button" aria-expanded="true">Hide controls</button>
         <div class="project-summary">
-          <p class="eyebrow">Time to X</p>
-          <h1>Giftable travel-time maps</h1>
+          <p class="eyebrow">Isochrones</p>
+          <h1>Travel-time maps</h1>
           <p class="intro">
             Choose a place and preview color-coded reachability bands. Use demo rings, or paste
             an OpenRouteService key to request real isochrone polygons.
@@ -75,7 +76,7 @@
           </label>
           <label>
             <input type="radio" name="traffic-mode" value="live" disabled>
-            Live traffic later
+            Live traffic
           </label>
         </fieldset>
 
@@ -90,7 +91,18 @@
             autocomplete="off"
           >
           <button id="fetch-real-data" type="button">Fetch real isochrones</button>
+          <button id="save-overlay" class="secondary-button" type="button">Save current overlay</button>
           <button id="clear-api-key" class="secondary-button" type="button">Clear key</button>
+        </fieldset>
+
+        <fieldset>
+          <legend>Saved overlays</legend>
+          <label for="saved-overlays">Local overlays</label>
+          <select id="saved-overlays" name="saved-overlays">
+            <option value="">No saved overlays</option>
+          </select>
+          <button id="load-overlay" type="button">Load overlay</button>
+          <button id="delete-overlay" class="secondary-button" type="button">Delete overlay</button>
         </fieldset>
 
         <label class="select-control" for="map-style">

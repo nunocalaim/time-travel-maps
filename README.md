@@ -1,6 +1,6 @@
-# Time to X
+# Isochrones
 
-Time to X is an exploratory project for making travel-time maps as gifts.
+Isochrones is an exploratory project for making travel-time maps.
 
 The first use case is simple: choose a location, show the surrounding area on a map, and overlay color-coded travel-time regions. For example, someone who bought a property could receive a map showing what places are reachable in 10, 20, 30, 45, or 60 minutes.
 
@@ -48,12 +48,16 @@ It currently uses:
 - Draggable export frame for choosing the PDF area.
 - Freely resizable export frame handles.
 - Overlay transparency control.
+- Last starting location persistence.
+- Local save/load for fetched OpenRouteService overlays.
 
 If tiles appear scrambled or misaligned, the Leaflet stylesheet is probably blocked by the browser or CDN. The app includes local fallback layout rules in `styles.css`, so refresh the page after pulling the latest files.
 
 The colored circles are placeholders. They are not real travel-time data yet; the next technical step is to replace them with isochrone polygons from a routing provider.
 
 To try real isochrones, create an OpenRouteService API key, paste it into the page, and click **Fetch real isochrones**. The key is stored only in `sessionStorage` for the current browser session, not committed to the repo.
+
+Fetched overlays can be saved to local browser storage and loaded later without calling the API again.
 
 Hosted OpenRouteService currently limits driving isochrones to 1 hour. Larger demo bands can be previewed locally, and larger real driving maps will need another provider or a self-hosted routing setup.
 
