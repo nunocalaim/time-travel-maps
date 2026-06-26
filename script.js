@@ -152,7 +152,7 @@ prepareExportButton.addEventListener("click", () => {
 });
 
 exportSelectionButton.addEventListener("click", () => {
-  exportSelectedFrameToPdf();
+  exportSelectedFrameToSvg();
 });
 
 maxTimeSelect.addEventListener("change", async () => {
@@ -990,7 +990,7 @@ function enterExportMode() {
 
   resetExportFrame();
   updateExportControls();
-  setStatus("Adjust the export frame, then choose Export selection.");
+  setStatus("Adjust the export frame, then choose Export SVG.");
 }
 
 function exitExportMode() {
@@ -1076,7 +1076,7 @@ function finishExportFrameDrag() {
   dragState = null;
   map.dragging.enable();
   updateExportHandles();
-  setStatus("Export frame moved. Use Export selection to print that area.");
+  setStatus("Export frame moved. Use Export SVG to download that area.");
 }
 
 function exportSelectedFrameToPdf() {
@@ -1098,6 +1098,129 @@ function exportSelectedFrameToPdf() {
   window.setTimeout(() => {
     window.print();
   }, 250);
+}
+
+function exportSelectedFrameToSvg() {
+  if (!isExportMode) {
+    enterExportMode();
+    return;
+  }
+
+  const crop = getExportFramePixelBounds();
+  const svg = createSelectedAreaSvg(crop);
+  const defaultName = currentOrigin.label || "isochrones-map";
+  const fileName = `${slugifyFileName(defaultName)}-isochrones.svg`;
+
+  downloadTextFile(fileName, svg, "image/svg+xml");
+  setStatus(`Downloaded SVG export: ${fileName}.`);
+}
+
+function createSelectedAreaSvg(crop) {
+  const width = Math.round(crop.width);
+  const height = Math.round(crop.height);
+  const content = [
+    `<rect width="${width}" height="${height}" fill="#ffffff"></rect>`,
+    createSvgTileLayer(crop),
+    createSvgOverlayLayer(crop),
+    createSvgAttribution(width, height),
+  ].filter(Boolean).join("\n");
+
+  return [
+    '<?xml version="1.0" encoding="UTF-8"?>',
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">`,
+    content,
+    "</svg>",
+  ].join("\n");
+}
+
+function createSvgTileLayer(crop) {
+  const mapRect = map.getContainer().getBoundingClientRect();
+  const tiles = [...map.getContainer().querySelectorAll(".leaflet-tile-pane img.leaflet-tile")];
+  const images = tiles.map((tile) => {
+    const tileRect = tile.getBoundingClientRect();
+    const x = tileRect.left - mapRect.left - crop.left;
+    const y = tileRect.top - mapRect.top - crop.top;
+    const width = tileRect.width;
+    const height = tileRect.height;
+
+    if (!rectsIntersect({ x, y, width, height }, { x: 0, y: 0, width: crop.width, height: crop.height })) {
+      return "";
+    }
+
+    const opacity = tile.style.opacity && tile.style.opacity !== "1" ? ` opacity="${escapeXml(tile.style.opacity)}"` : "";
+
+    return `<image href="${escapeXml(tile.currentSrc || tile.src)}" x="${roundSvgNumber(x)}" y="${roundSvgNumber(y)}" width="${roundSvgNumber(width)}" height="${roundSvgNumber(height)}"${opacity}></image>`;
+  }).filter(Boolean);
+
+  return images.length ? `<g id="map-tiles">\n${images.join("\n")}\n</g>` : "";
+}
+
+function createSvgOverlayLayer(crop) {
+  const overlaySvg = map.getContainer().querySelector(".leaflet-overlay-pane svg");
+
+  if (!overlaySvg) {
+    return "";
+  }
+
+  const mapRect = map.getContainer().getBoundingClientRect();
+  const overlayRect = overlaySvg.getBoundingClientRect();
+  const clone = overlaySvg.cloneNode(true);
+
+  clone.querySelectorAll(".export-frame").forEach((element) => element.remove());
+  clone.removeAttribute("class");
+  clone.removeAttribute("style");
+  clone.setAttribute("x", roundSvgNumber(overlayRect.left - mapRect.left - crop.left));
+  clone.setAttribute("y", roundSvgNumber(overlayRect.top - mapRect.top - crop.top));
+  clone.setAttribute("width", roundSvgNumber(overlayRect.width));
+  clone.setAttribute("height", roundSvgNumber(overlayRect.height));
+  clone.setAttribute("overflow", "visible");
+
+  return new XMLSerializer().serializeToString(clone);
+}
+
+function createSvgAttribution(width, height) {
+  return `<text x="${Math.max(8, width - 8)}" y="${Math.max(14, height - 8)}" text-anchor="end" font-family="Arial, sans-serif" font-size="11" fill="#5b6875">© openrouteservice.org by HeiGIT | Map data © OpenStreetMap contributors</text>`;
+}
+
+function rectsIntersect(first, second) {
+  return first.x < second.x + second.width
+    && first.x + first.width > second.x
+    && first.y < second.y + second.height
+    && first.y + first.height > second.y;
+}
+
+function roundSvgNumber(value) {
+  return String(Math.round(value * 100) / 100);
+}
+
+function escapeXml(value) {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;");
+}
+
+function slugifyFileName(value) {
+  return String(value)
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    || "isochrones-map";
+}
+
+function downloadTextFile(fileName, content, type) {
+  const blob = new Blob([content], { type });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+
+  link.href = url;
+  link.download = fileName;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 0);
 }
 
 function setPrintCropFromExportFrame() {
