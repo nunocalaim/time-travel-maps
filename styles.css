@@ -594,6 +594,7 @@ fieldset label:has(input:disabled) {
   #export-selection,
   #reset-export-frame,
   #cancel-export,
+  .sidebar-toggle,
   .status,
   .hint,
   .leaflet-control-zoom,
