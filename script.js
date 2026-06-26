@@ -1150,10 +1150,15 @@ function clearPrintCropVars() {
 }
 
 function setPrintPageStyle(width, height) {
+  const roundedWidth = Math.round(width);
+  const roundedHeight = Math.round(height);
+  const pageWidthInches = (roundedWidth / 96).toFixed(4);
+  const pageHeightInches = (roundedHeight / 96).toFixed(4);
+
   printPageStyle.textContent = `
     @media print {
       @page {
-        size: ${Math.round(width)}px ${Math.round(height)}px;
+        size: ${pageWidthInches}in ${pageHeightInches}in;
         margin: 0;
       }
 
@@ -1161,10 +1166,10 @@ function setPrintPageStyle(width, height) {
       body,
       .app-shell,
       .map-panel {
-        width: ${Math.round(width)}px;
-        height: ${Math.round(height)}px;
+        width: ${roundedWidth}px;
+        height: ${roundedHeight}px;
         min-height: 0;
-        max-height: ${Math.round(height)}px;
+        max-height: ${roundedHeight}px;
         overflow: hidden;
       }
     }
