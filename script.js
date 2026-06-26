@@ -1156,6 +1156,17 @@ function setPrintPageStyle(width, height) {
         size: ${Math.round(width)}px ${Math.round(height)}px;
         margin: 0;
       }
+
+      html,
+      body,
+      .app-shell,
+      .map-panel {
+        width: ${Math.round(width)}px;
+        height: ${Math.round(height)}px;
+        min-height: 0;
+        max-height: ${Math.round(height)}px;
+        overflow: hidden;
+      }
     }
   `;
 }
