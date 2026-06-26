@@ -27,67 +27,62 @@
           </p>
         </div>
 
-        <div class="origin-panel">
-          <h2>Starting point</h2>
-          <p>Right-click the map to define a starting point, or use your current location.</p>
-          <button id="use-location" class="secondary-button" type="button">Use my location</button>
-        </div>
+        <fieldset class="creation-controls">
+          <legend>Create overlay</legend>
+          <div class="origin-panel">
+            <h2>Starting point</h2>
+            <p>Right-click the map to define a starting point, or use your current location.</p>
+            <button id="use-location" class="secondary-button" type="button">Use my location</button>
+          </div>
 
-        <fieldset>
-          <legend>Travel mode</legend>
-          <label>
-            <input type="radio" name="travel-mode" value="drive" checked>
-            Drive
-          </label>
-          <label>
-            <input type="radio" name="travel-mode" value="walk">
-            Walk
-          </label>
+          <div class="radio-group">
+            <h2>Travel mode</h2>
+            <label>
+              <input type="radio" name="travel-mode" value="drive" checked>
+              Drive
+            </label>
+            <label>
+              <input type="radio" name="travel-mode" value="walk">
+              Walk
+            </label>
+          </div>
+
+          <input id="max-time" name="max-time" type="hidden" value="60">
+
+          <div class="radio-group">
+            <h2>Traffic consideration</h2>
+            <label>
+              <input type="radio" name="traffic-mode" value="traffic-free" checked>
+              No traffic
+            </label>
+            <label>
+              <input type="radio" name="traffic-mode" value="typical">
+              Typical traffic
+            </label>
+            <label>
+              <input type="radio" name="traffic-mode" value="live" disabled>
+              Live traffic
+            </label>
+          </div>
+
+          <div class="api-controls">
+            <h2>Real data</h2>
+            <label for="ors-api-key">OpenRouteService API key</label>
+            <input
+              id="ors-api-key"
+              name="ors-api-key"
+              type="password"
+              placeholder="Paste key for real isochrones"
+              autocomplete="off"
+            >
+            <button id="fetch-real-data" type="button">Fetch real isochrones</button>
+            <button id="clear-api-key" class="secondary-button" type="button">Clear key</button>
+          </div>
         </fieldset>
 
-        <label class="select-control" for="max-time">
-          Maximum travel time
-          <select id="max-time" name="max-time">
-            <option value="15">15 minutes</option>
-            <option value="30">30 minutes</option>
-            <option value="45">45 minutes</option>
-            <option value="60" selected>1 hour</option>
-          </select>
-        </label>
-
-        <fieldset>
-          <legend>Time assumption</legend>
-          <label>
-            <input type="radio" name="traffic-mode" value="traffic-free" checked>
-            No traffic
-          </label>
-          <label>
-            <input type="radio" name="traffic-mode" value="typical">
-            Typical traffic
-          </label>
-          <label>
-            <input type="radio" name="traffic-mode" value="live" disabled>
-            Live traffic
-          </label>
-        </fieldset>
-
-        <fieldset>
-          <legend>Real data</legend>
-          <label for="ors-api-key">OpenRouteService API key</label>
-          <input
-            id="ors-api-key"
-            name="ors-api-key"
-            type="password"
-            placeholder="Paste key for real isochrones"
-            autocomplete="off"
-          >
-          <button id="fetch-real-data" type="button">Fetch real isochrones</button>
+        <fieldset class="overlay-library">
+          <legend>Overlays</legend>
           <button id="save-overlay" class="secondary-button" type="button">Save current overlay</button>
-          <button id="clear-api-key" class="secondary-button" type="button">Clear key</button>
-        </fieldset>
-
-        <fieldset>
-          <legend>Saved overlays</legend>
           <label for="saved-overlays">Local overlays</label>
           <select id="saved-overlays" name="saved-overlays">
             <option value="">No saved overlays</option>
@@ -96,47 +91,49 @@
           <button id="delete-overlay" class="secondary-button" type="button">Delete overlay</button>
         </fieldset>
 
-        <label class="select-control" for="map-style">
-          Map style
-          <select id="map-style" name="map-style">
-            <option value="voyager" selected>Detailed</option>
-            <option value="light">Light print</option>
-            <option value="dark">Dark</option>
-          </select>
-        </label>
+        <div id="overlay-tools" class="overlay-tools is-hidden">
+          <label class="select-control" for="map-style">
+            Map style
+            <select id="map-style" name="map-style">
+              <option value="voyager" selected>Detailed</option>
+              <option value="light">Light print</option>
+              <option value="dark">Dark</option>
+            </select>
+          </label>
 
-        <label class="range-control" for="overlay-opacity">
-          Overlay transparency
-          <input
-            id="overlay-opacity"
-            name="overlay-opacity"
-            type="range"
-            min="10"
-            max="70"
-            value="28"
-          >
-        </label>
+          <label class="range-control" for="overlay-opacity">
+            Overlay transparency
+            <input
+              id="overlay-opacity"
+              name="overlay-opacity"
+              type="range"
+              min="10"
+              max="70"
+              value="28"
+            >
+          </label>
 
-        <label class="checkbox-control">
-          <input id="include-legend" name="include-legend" type="checkbox" checked>
-          Include legend in export
-        </label>
+          <label class="checkbox-control">
+            <input id="include-legend" name="include-legend" type="checkbox" checked>
+            Include legend in export
+          </label>
 
-        <button id="prepare-export" type="button">Prepare export</button>
-        <button id="export-selection" class="is-hidden" type="button">Export selection</button>
-        <button id="reset-export-frame" class="secondary-button is-hidden" type="button">Reset export frame</button>
-        <button id="cancel-export" class="secondary-button is-hidden" type="button">Cancel export</button>
+          <button id="prepare-export" type="button">Prepare export</button>
+          <button id="export-selection" class="is-hidden" type="button">Export selection</button>
+          <button id="reset-export-frame" class="secondary-button is-hidden" type="button">Reset export frame</button>
+          <button id="cancel-export" class="secondary-button is-hidden" type="button">Cancel export</button>
 
-        <div class="legend" aria-label="Travel time legend">
-          <h2>Travel-time bands</h2>
-          <div><span class="swatch band-1"></span> 1 min</div>
-          <div><span class="swatch band-5"></span> 5 min</div>
-          <div><span class="swatch band-10"></span> 10 min</div>
-          <div><span class="swatch band-15"></span> 15 min</div>
-          <div><span class="swatch band-20"></span> 20 min</div>
-          <div><span class="swatch band-30"></span> 30 min</div>
-          <div><span class="swatch band-45"></span> 45 min</div>
-          <div><span class="swatch band-60"></span> 60 min</div>
+          <div class="legend" aria-label="Travel time legend">
+            <h2>Travel-time bands</h2>
+            <div><span class="swatch band-1"></span> 1 min</div>
+            <div><span class="swatch band-5"></span> 5 min</div>
+            <div><span class="swatch band-10"></span> 10 min</div>
+            <div><span class="swatch band-15"></span> 15 min</div>
+            <div><span class="swatch band-20"></span> 20 min</div>
+            <div><span class="swatch band-30"></span> 30 min</div>
+            <div><span class="swatch band-45"></span> 45 min</div>
+            <div><span class="swatch band-60"></span> 60 min</div>
+          </div>
         </div>
 
         <p id="status" class="status" role="status">Showing a demo map centered on Coimbra.</p>

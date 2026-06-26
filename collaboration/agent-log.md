@@ -515,3 +515,31 @@ Open Questions:
 Next:
 - Test sidebar behavior on desktop and mobile.
 - Copy the ORS key into `config.local.js` locally.
+
+## 2026-06-26 - Overlay workflow refinement
+
+Participants:
+- Human: Nuno
+- AI: Codex
+
+Goal:
+- Separate overlay creation from overlay styling/export and make saved overlays more useful.
+
+Decisions:
+- Prompt for a name when saving overlays, defaulting to the readable location label.
+- Use reverse geocoding for right-click/current-location names when possible.
+- Load the newest saved overlay automatically on startup.
+- Hide style/export controls until a real or saved overlay exists.
+- Rename Time assumption to Traffic consideration.
+- Hide the entire side panel in print when legend export is disabled.
+
+Tried:
+- Added reverse geocoding via Nominatim.
+- Added `overlayTools` visibility state.
+- Changed saved-overlay loading to restore view center and zoom.
+
+Open Questions:
+- Should saved overlays be shown as cards rather than a select/dropdown?
+
+Next:
+- Test with existing saved overlays and a newly saved named overlay.

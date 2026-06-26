@@ -36,13 +36,12 @@ It currently uses:
 
 - Leaflet for map rendering.
 - CARTO raster map tiles using OpenStreetMap data.
-- Nominatim for public location search.
-- Demo travel-time rings, not real routing or traffic data yet.
+- Nominatim reverse geocoding for readable saved-overlay names.
+- Demo travel-time rings only before a real or saved overlay is available.
 - A provider-shaped travel-time boundary in `script.js`, currently set to `demo`.
 - A small map-style selector for detailed, light, and dark base maps.
 - Optional OpenRouteService isochrones when an API key is pasted into the local page.
 - Right-click-to-set origin refinement on the map.
-- Configurable maximum travel time for demo bands and provider requests.
 - Browser PDF export through a selectable print area.
 - Explicit OpenRouteService/OpenStreetMap attribution in the UI and print layout.
 - Draggable export frame for choosing the PDF area.
@@ -58,6 +57,8 @@ The colored circles are placeholders. They are not real travel-time data yet; th
 To try real isochrones, create an OpenRouteService API key, paste it into the page, and click **Fetch real isochrones**. The key is stored only in `sessionStorage` for the current browser session, not committed to the repo.
 
 For a persistent local key, copy `config.local.example.js` to `config.local.js` and add your key there. `config.local.js` is ignored by Git.
+
+Because this is currently a static browser app, pasting a key into the page stores it only in the browser session. The app cannot write that key back into `config.local.js` by itself.
 
 Fetched overlays can be saved to local browser storage and loaded later without calling the API again.
 

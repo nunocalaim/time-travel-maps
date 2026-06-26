@@ -51,6 +51,7 @@ const clearApiKeyButton = document.querySelector("#clear-api-key");
 const savedOverlaysSelect = document.querySelector("#saved-overlays");
 const loadOverlayButton = document.querySelector("#load-overlay");
 const deleteOverlayButton = document.querySelector("#delete-overlay");
+const overlayTools = document.querySelector("#overlay-tools");
 const mapStyleSelect = document.querySelector("#map-style");
 const maxTimeSelect = document.querySelector("#max-time");
 const overlayOpacityInput = document.querySelector("#overlay-opacity");
@@ -64,6 +65,7 @@ const statusEl = document.querySelector("#status");
 const printPageStyle = document.querySelector("#print-page-style");
 const localConfig = window.ISOCHRONES_CONFIG || {};
 const initialPlace = getInitialPlace();
+const initialSavedOverlay = getLatestSavedOverlay();
 
 const map = L.map("map", {
   zoomControl: false,
@@ -89,7 +91,11 @@ let dragState = null;
 
 orsApiKeyInput.value = getStoredOpenRouteServiceApiKey();
 refreshSavedOverlayList();
-refreshTravelTimeOverlay(initialPlace.lat, initialPlace.lng);
+if (initialSavedOverlay) {
+  loadOverlay(initialSavedOverlay, { announce: false });
+} else {
+  refreshTravelTimeOverlay(initialPlace.lat, initialPlace.lng);
+}
 
 toggleSidebarButton.addEventListener("click", () => {
   const collapsed = document.body.classList.toggle("sidebar-collapsed");
@@ -110,9 +116,9 @@ useLocationButton.addEventListener("click", () => {
 
   setStatus("Requesting your location...");
   navigator.geolocation.getCurrentPosition(
-    (position) => {
+    async (position) => {
       const { latitude, longitude } = position.coords;
-      setOrigin(latitude, longitude, "your current location");
+      await setOrigin(latitude, longitude, await getReadableLocationName(latitude, longitude));
     },
     () => {
       setStatus("Could not access your location.");
@@ -124,16 +130,14 @@ useLocationButton.addEventListener("click", () => {
 document.querySelectorAll('input[name="travel-mode"]').forEach((control) => {
   control.addEventListener("change", async () => {
     invalidateRealData();
-    const center = originMarker.getLatLng();
-    await refreshTravelTimeOverlay(center.lat, center.lng);
+    await refreshCreationSettingsPreview();
   });
 });
 
 document.querySelectorAll('input[name="traffic-mode"]').forEach((control) => {
   control.addEventListener("change", async () => {
     invalidateRealData();
-    const center = originMarker.getLatLng();
-    await refreshTravelTimeOverlay(center.lat, center.lng);
+    await refreshCreationSettingsPreview();
   });
 });
 
@@ -151,8 +155,7 @@ exportSelectionButton.addEventListener("click", () => {
 
 maxTimeSelect.addEventListener("change", async () => {
   invalidateRealData();
-  const center = originMarker.getLatLng();
-  await refreshTravelTimeOverlay(center.lat, center.lng);
+  await refreshCreationSettingsPreview();
 });
 
 overlayOpacityInput.addEventListener("input", () => {
@@ -194,7 +197,7 @@ document.addEventListener("mouseup", () => {
 
 map.on("contextmenu", async (event) => {
   const { lat, lng } = event.latlng;
-  await setOrigin(lat, lng, "selected map point", { recenter: false });
+  await setOrigin(lat, lng, await getReadableLocationName(lat, lng), { recenter: false });
 });
 
 map.on("mousemove", (event) => {
@@ -215,12 +218,11 @@ orsApiKeyInput.addEventListener("change", async () => {
 
   if (key) {
     sessionStorage.setItem(ORS_KEY_STORAGE, key);
+    setStatus("API key saved for this browser session. Click Fetch real isochrones when ready.");
   } else {
     sessionStorage.removeItem(ORS_KEY_STORAGE);
+    setStatus("API key cleared from this browser session.");
   }
-
-  const center = originMarker.getLatLng();
-  await refreshTravelTimeOverlay(center.lat, center.lng);
 });
 
 fetchRealDataButton.addEventListener("click", async () => {
@@ -250,9 +252,7 @@ clearApiKeyButton.addEventListener("click", async () => {
   invalidateRealData();
   orsApiKeyInput.value = "";
   sessionStorage.removeItem(ORS_KEY_STORAGE);
-
-  const center = originMarker.getLatLng();
-  await refreshTravelTimeOverlay(center.lat, center.lng);
+  setStatus("API key cleared from this browser session.");
 });
 
 async function geocode(query) {
@@ -299,7 +299,43 @@ async function setOrigin(lat, lng, label, options = {}) {
     map.setView([lat, lng], 10);
   }
 
+  if (currentOverlayResult && currentOverlayResult.type === "geojson" && !options.preserveRealData) {
+    currentOverlayResult = null;
+    overlayLayer.clearLayers();
+    updateOverlayToolsVisibility();
+    exitExportMode();
+    setStatus("Starting point set. Click Fetch real isochrones to create a real overlay.");
+    return;
+  }
+
   await refreshTravelTimeOverlay(lat, lng);
+}
+
+async function getReadableLocationName(lat, lng) {
+  try {
+    const params = new URLSearchParams({
+      lat: String(lat),
+      lon: String(lng),
+      format: "jsonv2",
+      zoom: "18",
+    });
+    const response = await fetch(`https://nominatim.openstreetmap.org/reverse?${params.toString()}`, {
+      headers: {
+        Accept: "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error("Reverse geocoding failed");
+    }
+
+    const result = await response.json();
+    const address = result.address || {};
+
+    return address.road || address.neighbourhood || address.suburb || address.village || address.town || address.city || result.name || result.display_name || `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+  } catch (error) {
+    return `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+  }
 }
 
 function createOriginMarker(lat, lng, label) {
@@ -335,15 +371,28 @@ async function refreshTravelTimeOverlay(lat, lng) {
 
     currentOverlayResult = result;
     renderTravelTimeOverlay(result);
+    updateOverlayToolsVisibility();
     fitMapToOverlay();
     setStatus(describeOverlayResult(result, mode, traffic));
   } catch (error) {
     useRealData = false;
     currentOverlayResult = getDemoOverlay({ lat, lng, mode, traffic, minutes: requestedMinutes });
     renderTravelTimeOverlay(currentOverlayResult);
+    updateOverlayToolsVisibility();
     fitMapToOverlay();
     setStatus(`${error.message} Showing demo bands instead.`);
   }
+}
+
+async function refreshCreationSettingsPreview() {
+  const center = originMarker.getLatLng();
+
+  if (currentOverlayResult && currentOverlayResult.type === "geojson") {
+    setStatus("Creation settings changed. Click Fetch real isochrones to replace the current overlay.");
+    return;
+  }
+
+  await refreshTravelTimeOverlay(center.lat, center.lng);
 }
 
 async function getTravelTimeOverlay(request) {
@@ -445,6 +494,10 @@ function getSavedOverlays() {
   }
 }
 
+function getLatestSavedOverlay() {
+  return getSavedOverlays()[0] || null;
+}
+
 function setSavedOverlays(overlays) {
   localStorage.setItem(SAVED_OVERLAYS_STORAGE, JSON.stringify(overlays));
 }
@@ -480,7 +533,8 @@ function saveCurrentOverlay() {
   const mode = document.querySelector('input[name="travel-mode"]:checked').value;
   const maxMinutes = Number(maxTimeSelect.value);
   const createdAt = new Date().toISOString();
-  const name = `${currentOrigin.label} - ${mode}, ${maxMinutes} min`;
+  const defaultName = currentOrigin.label || `${currentOrigin.lat.toFixed(5)}, ${currentOrigin.lng.toFixed(5)}`;
+  const name = window.prompt("Name this overlay", defaultName) || defaultName;
   const overlay = {
     id: `overlay-${Date.now()}`,
     name,
@@ -514,6 +568,10 @@ function loadSelectedOverlay() {
     return;
   }
 
+  loadOverlay(overlay);
+}
+
+function loadOverlay(overlay, options = {}) {
   useRealData = false;
   currentOrigin = overlay.origin;
   currentOverlayResult = overlay.result;
@@ -531,11 +589,19 @@ function loadSelectedOverlay() {
   saveLastOrigin(overlay.origin);
   originMarker.setLatLng([overlay.origin.lat, overlay.origin.lng]).bindPopup(overlay.origin.label).openPopup();
   renderTravelTimeOverlay(overlay.result);
+  updateOverlayToolsVisibility();
   if (overlay.view) {
     map.setView([overlay.view.center.lat, overlay.view.center.lng], overlay.view.zoom, { animate: false });
   } else {
     fitMapToOverlay();
   }
+  savedOverlaysSelect.value = overlay.id;
+
+  if (options.announce === false) {
+    setStatus(`Loaded latest saved overlay: ${overlay.name}.`);
+    return;
+  }
+
   setStatus(`Loaded saved overlay: ${overlay.name}.`);
 }
 
@@ -564,6 +630,10 @@ function renderTravelTimeOverlay(result) {
   }
 
   throw new Error(`Unsupported overlay result type: ${result.type}`);
+}
+
+function updateOverlayToolsVisibility() {
+  overlayTools.classList.toggle("is-hidden", !currentOverlayResult || currentOverlayResult.type !== "geojson");
 }
 
 function drawGeoJsonBands(geojson) {

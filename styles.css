@@ -378,6 +378,27 @@ fieldset label:has(input:disabled) {
   opacity: 0.45;
 }
 
+.radio-group,
+.api-controls {
+  display: grid;
+  gap: 10px;
+}
+
+.radio-group h2,
+.api-controls h2 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.overlay-tools {
+  display: grid;
+  gap: 22px;
+}
+
+.overlay-tools.is-hidden {
+  display: none;
+}
+
 .legend {
   display: grid;
   gap: 8px;
@@ -567,6 +588,10 @@ fieldset label:has(input:disabled) {
   }
 
   body.no-print-legend .legend {
+    display: none;
+  }
+
+  body.no-print-legend .control-panel {
     display: none;
   }
 
