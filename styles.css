@@ -581,6 +581,8 @@ fieldset label:has(input:disabled) {
     top: var(--export-map-top);
     width: var(--export-map-width);
     height: var(--export-map-height);
+    transform: scale(var(--export-map-scale));
+    transform-origin: 0 0;
   }
 
   .control-panel {

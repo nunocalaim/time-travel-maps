@@ -1093,7 +1093,7 @@ function exportSelectedFrameToPdf() {
   document.body.classList.toggle("no-print-legend", !includeLegendInput.checked);
   setPrintCropFromExportFrame();
   map.invalidateSize();
-  setStatus("Preparing selected export area...");
+  setStatus("Preparing selected export area. In the print dialog, use custom page size or 100% scale if the preview adds margins.");
 
   window.setTimeout(() => {
     window.print();
@@ -1121,12 +1121,13 @@ function applyPrintCropVars(crop) {
   const root = document.documentElement;
 
   setPrintPageStyle(crop.pageWidth, crop.pageHeight);
-  root.style.setProperty("--export-map-width", `${crop.mapWidth * crop.scale}px`);
-  root.style.setProperty("--export-map-height", `${crop.mapHeight * crop.scale}px`);
+  root.style.setProperty("--export-map-width", `${crop.mapWidth}px`);
+  root.style.setProperty("--export-map-height", `${crop.mapHeight}px`);
   root.style.setProperty("--export-map-left", `${-crop.left * crop.scale}px`);
   root.style.setProperty("--export-map-top", `${-crop.top * crop.scale}px`);
   root.style.setProperty("--export-page-width", `${crop.pageWidth}px`);
   root.style.setProperty("--export-page-height", `${crop.pageHeight}px`);
+  root.style.setProperty("--export-map-scale", String(crop.scale));
 }
 
 function getExportScale(crop) {
@@ -1160,6 +1161,7 @@ function clearPrintCropVars() {
     "--export-map-height",
     "--export-map-left",
     "--export-map-top",
+    "--export-map-scale",
     "--export-page-width",
     "--export-page-height",
   ].forEach((property) => {
