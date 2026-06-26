@@ -21,6 +21,8 @@ const LAST_ORIGIN_STORAGE = "isochrones:last-origin";
 const SAVED_OVERLAYS_STORAGE = "isochrones:saved-overlays";
 const ORS_MAX_DRIVING_MINUTES = 60;
 const ZOOM_CLOSER_DELTA = Math.log2(1.45);
+const EXPORT_MAX_PAGE_WIDTH = 1056;
+const EXPORT_MAX_PAGE_HEIGHT = 816;
 
 const mapStyles = {
   voyager: {
@@ -1101,8 +1103,16 @@ function exportSelectedFrameToPdf() {
 function setPrintCropFromExportFrame() {
   const mapSize = map.getSize();
   const crop = getExportFramePixelBounds();
+  const scale = getExportScale(crop);
 
-  pendingPrintCrop = { ...crop, mapWidth: mapSize.x, mapHeight: mapSize.y };
+  pendingPrintCrop = {
+    ...crop,
+    mapWidth: mapSize.x,
+    mapHeight: mapSize.y,
+    pageWidth: crop.width * scale,
+    pageHeight: crop.height * scale,
+    scale,
+  };
   applyPrintCropVars(pendingPrintCrop);
   document.body.classList.add("print-crop");
 }
@@ -1110,13 +1120,21 @@ function setPrintCropFromExportFrame() {
 function applyPrintCropVars(crop) {
   const root = document.documentElement;
 
-  setPrintPageStyle(crop.width, crop.height);
-  root.style.setProperty("--export-map-width", `${crop.mapWidth}px`);
-  root.style.setProperty("--export-map-height", `${crop.mapHeight}px`);
-  root.style.setProperty("--export-map-left", `${-crop.left}px`);
-  root.style.setProperty("--export-map-top", `${-crop.top}px`);
-  root.style.setProperty("--export-page-width", `${crop.width}px`);
-  root.style.setProperty("--export-page-height", `${crop.height}px`);
+  setPrintPageStyle(crop.pageWidth, crop.pageHeight);
+  root.style.setProperty("--export-map-width", `${crop.mapWidth * crop.scale}px`);
+  root.style.setProperty("--export-map-height", `${crop.mapHeight * crop.scale}px`);
+  root.style.setProperty("--export-map-left", `${-crop.left * crop.scale}px`);
+  root.style.setProperty("--export-map-top", `${-crop.top * crop.scale}px`);
+  root.style.setProperty("--export-page-width", `${crop.pageWidth}px`);
+  root.style.setProperty("--export-page-height", `${crop.pageHeight}px`);
+}
+
+function getExportScale(crop) {
+  return Math.min(
+    1,
+    EXPORT_MAX_PAGE_WIDTH / crop.width,
+    EXPORT_MAX_PAGE_HEIGHT / crop.height
+  );
 }
 
 function getExportFramePixelBounds() {
