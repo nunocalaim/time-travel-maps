@@ -11,4 +11,4 @@ build/
 .env
 .env.*
 !.env.example
-
+config.local.js

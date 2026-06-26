@@ -57,6 +57,8 @@ The colored circles are placeholders. They are not real travel-time data yet; th
 
 To try real isochrones, create an OpenRouteService API key, paste it into the page, and click **Fetch real isochrones**. The key is stored only in `sessionStorage` for the current browser session, not committed to the repo.
 
+For a persistent local key, copy `config.local.example.js` to `config.local.js` and add your key there. `config.local.js` is ignored by Git.
+
 Fetched overlays can be saved to local browser storage and loaded later without calling the API again.
 
 Hosted OpenRouteService currently limits driving isochrones to 1 hour. Larger demo bands can be previewed locally, and larger real driving maps will need another provider or a self-hosted routing setup.

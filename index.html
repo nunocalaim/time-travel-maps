@@ -14,10 +14,10 @@
     >
     <link rel="stylesheet" href="styles.css">
   </head>
-  <body>
+  <body class="sidebar-collapsed">
     <main class="app-shell">
+      <button id="toggle-sidebar" class="sidebar-toggle" type="button" aria-label="Expand controls" aria-expanded="false">☰</button>
       <section class="control-panel" aria-label="Map controls">
-        <button id="toggle-sidebar" class="sidebar-toggle" type="button" aria-expanded="true">Hide controls</button>
         <div class="project-summary">
           <p class="eyebrow">Isochrones</p>
           <h1>Travel-time maps</h1>
@@ -27,20 +27,11 @@
           </p>
         </div>
 
-        <form id="location-form" class="location-form">
-          <label for="location-input">Starting location</label>
-          <div class="input-row">
-            <input
-              id="location-input"
-              name="location"
-              type="search"
-              placeholder="Try: Coimbra, Portugal"
-              autocomplete="street-address"
-            >
-            <button type="submit">Search</button>
-          </div>
+        <div class="origin-panel">
+          <h2>Starting point</h2>
+          <p>Right-click the map to define a starting point, or use your current location.</p>
           <button id="use-location" class="secondary-button" type="button">Use my location</button>
-        </form>
+        </div>
 
         <fieldset>
           <legend>Travel mode</legend>
@@ -169,6 +160,7 @@
       integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
       crossorigin=""
     ></script>
+    <script src="config.local.js"></script>
     <script src="script.js"></script>
   </body>
 </html>

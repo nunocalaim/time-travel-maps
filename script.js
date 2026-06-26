@@ -43,8 +43,6 @@ const mapStyles = {
   },
 };
 
-const form = document.querySelector("#location-form");
-const input = document.querySelector("#location-input");
 const toggleSidebarButton = document.querySelector("#toggle-sidebar");
 const orsApiKeyInput = document.querySelector("#ors-api-key");
 const fetchRealDataButton = document.querySelector("#fetch-real-data");
@@ -64,6 +62,7 @@ const cancelExportButton = document.querySelector("#cancel-export");
 const useLocationButton = document.querySelector("#use-location");
 const statusEl = document.querySelector("#status");
 const printPageStyle = document.querySelector("#print-page-style");
+const localConfig = window.ISOCHRONES_CONFIG || {};
 const initialPlace = getInitialPlace();
 
 const map = L.map("map", {
@@ -88,38 +87,14 @@ let pendingPrintView = null;
 let pendingPrintCrop = null;
 let dragState = null;
 
-input.value = initialPlace.label;
-orsApiKeyInput.value = sessionStorage.getItem(ORS_KEY_STORAGE) || "";
+orsApiKeyInput.value = getStoredOpenRouteServiceApiKey();
 refreshSavedOverlayList();
 refreshTravelTimeOverlay(initialPlace.lat, initialPlace.lng);
 
-form.addEventListener("submit", async (event) => {
-  event.preventDefault();
-  const query = input.value.trim();
-
-  if (!query) {
-    setStatus("Enter a place to search.");
-    return;
-  }
-
-  setStatus(`Searching for "${query}"...`);
-
-  try {
-    const result = await geocode(query);
-    if (!result) {
-      setStatus(`No location found for "${query}".`);
-      return;
-    }
-
-    await setOrigin(result.lat, result.lng, result.label);
-  } catch (error) {
-    setStatus("Location search failed. The public geocoder may be busy.");
-  }
-});
-
 toggleSidebarButton.addEventListener("click", () => {
   const collapsed = document.body.classList.toggle("sidebar-collapsed");
-  toggleSidebarButton.textContent = collapsed ? "Show controls" : "Hide controls";
+  toggleSidebarButton.textContent = collapsed ? "☰" : "×";
+  toggleSidebarButton.setAttribute("aria-label", collapsed ? "Expand controls" : "Collapse controls");
   toggleSidebarButton.setAttribute("aria-expanded", String(!collapsed));
 
   window.setTimeout(() => {
@@ -137,7 +112,6 @@ useLocationButton.addEventListener("click", () => {
   navigator.geolocation.getCurrentPosition(
     (position) => {
       const { latitude, longitude } = position.coords;
-      input.value = `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`;
       setOrigin(latitude, longitude, "your current location");
     },
     () => {
@@ -220,7 +194,6 @@ document.addEventListener("mouseup", () => {
 
 map.on("contextmenu", async (event) => {
   const { lat, lng } = event.latlng;
-  input.value = `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
   await setOrigin(lat, lng, "selected map point", { recenter: false });
 });
 
@@ -513,6 +486,13 @@ function saveCurrentOverlay() {
     name,
     createdAt,
     origin: currentOrigin,
+    view: {
+      center: {
+        lat: map.getCenter().lat,
+        lng: map.getCenter().lng,
+      },
+      zoom: map.getZoom(),
+    },
     mode,
     traffic: document.querySelector('input[name="traffic-mode"]:checked').value,
     maxMinutes,
@@ -537,7 +517,6 @@ function loadSelectedOverlay() {
   useRealData = false;
   currentOrigin = overlay.origin;
   currentOverlayResult = overlay.result;
-  input.value = overlay.origin.label;
   maxTimeSelect.value = String(overlay.maxMinutes);
   const modeControl = document.querySelector(`input[name="travel-mode"][value="${overlay.mode}"]`);
   const trafficControl = document.querySelector(`input[name="traffic-mode"][value="${overlay.traffic}"]`);
@@ -552,7 +531,11 @@ function loadSelectedOverlay() {
   saveLastOrigin(overlay.origin);
   originMarker.setLatLng([overlay.origin.lat, overlay.origin.lng]).bindPopup(overlay.origin.label).openPopup();
   renderTravelTimeOverlay(overlay.result);
-  fitMapToOverlay();
+  if (overlay.view) {
+    map.setView([overlay.view.center.lat, overlay.view.center.lng], overlay.view.zoom, { animate: false });
+  } else {
+    fitMapToOverlay();
+  }
   setStatus(`Loaded saved overlay: ${overlay.name}.`);
 }
 
@@ -822,7 +805,11 @@ function getTravelTimeProvider() {
 }
 
 function getOpenRouteServiceApiKey() {
-  return orsApiKeyInput.value.trim() || sessionStorage.getItem(ORS_KEY_STORAGE) || "";
+  return orsApiKeyInput.value.trim() || getStoredOpenRouteServiceApiKey();
+}
+
+function getStoredOpenRouteServiceApiKey() {
+  return localConfig.openRouteServiceApiKey || sessionStorage.getItem(ORS_KEY_STORAGE) || "";
 }
 
 function setBaseMapStyle(styleId) {

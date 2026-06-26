@@ -484,3 +484,34 @@ Open Questions:
 
 Next:
 - Test save/load with a real ORS response.
+
+## 2026-06-26 - Full-screen map controls and local key file
+
+Participants:
+- Human: Nuno
+- AI: Codex
+
+Goal:
+- Make the map feel like a normal full-screen map app and keep secrets out of Git.
+
+Decisions:
+- Hide the sidebar by default.
+- Use a compact floating sidebar toggle instead of a text show/hide button.
+- Render controls as an overlay above the map so the map is never squeezed.
+- Remove the starting-location search input from the sidebar.
+- Keep body scrolling disabled; if controls overflow, only the sidebar scrolls.
+- Read an optional OpenRouteService key from ignored `config.local.js`.
+- Save the current map center/zoom with saved overlays.
+
+Tried:
+- Added `config.local.example.js` and ignored `config.local.js`.
+- Added local config loading before the main app script.
+- Reworked sidebar layout to fixed overlay mode.
+- Added saved view state to saved overlays.
+
+Open Questions:
+- Browser JavaScript cannot write a pasted key directly to a local file without a backend or file picker; should a future local dev server handle this?
+
+Next:
+- Test sidebar behavior on desktop and mobile.
+- Copy the ORS key into `config.local.js` locally.
