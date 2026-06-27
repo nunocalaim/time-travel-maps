@@ -804,6 +804,7 @@ function createBaseLayer(style) {
   return L.tileLayer(style.url, {
     maxZoom: 19,
     attribution: style.attribution,
+    crossOrigin: "anonymous",
   });
 }
 
@@ -1100,43 +1101,45 @@ function exportSelectedFrameToPdf() {
   }, 250);
 }
 
-function exportSelectedFrameToSvg() {
+async function exportSelectedFrameToSvg() {
   if (!isExportMode) {
     enterExportMode();
     return;
   }
 
   const crop = getExportFramePixelBounds();
-  const svg = createSelectedAreaSvg(crop);
   const defaultName = currentOrigin.label || "isochrones-map";
   const fileName = `${slugifyFileName(defaultName)}-isochrones.svg`;
+
+  setStatus("Preparing Illustrator-friendly SVG export...");
+  const svg = await createSelectedAreaSvg(crop);
 
   downloadTextFile(fileName, svg, "image/svg+xml");
   setStatus(`Downloaded SVG export: ${fileName}.`);
 }
 
-function createSelectedAreaSvg(crop) {
+async function createSelectedAreaSvg(crop) {
   const width = Math.round(crop.width);
   const height = Math.round(crop.height);
   const content = [
     `<rect width="${width}" height="${height}" fill="#ffffff"></rect>`,
-    createSvgTileLayer(crop),
+    await createSvgTileLayer(crop),
     createSvgOverlayLayer(crop),
     createSvgAttribution(width, height),
   ].filter(Boolean).join("\n");
 
   return [
     '<?xml version="1.0" encoding="UTF-8"?>',
-    `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">`,
+    `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">`,
     content,
     "</svg>",
   ].join("\n");
 }
 
-function createSvgTileLayer(crop) {
+async function createSvgTileLayer(crop) {
   const mapRect = map.getContainer().getBoundingClientRect();
   const tiles = [...map.getContainer().querySelectorAll(".leaflet-tile-pane img.leaflet-tile")];
-  const images = tiles.map((tile) => {
+  const images = await Promise.all(tiles.map(async (tile) => {
     const tileRect = tile.getBoundingClientRect();
     const x = tileRect.left - mapRect.left - crop.left;
     const y = tileRect.top - mapRect.top - crop.top;
@@ -1148,11 +1151,14 @@ function createSvgTileLayer(crop) {
     }
 
     const opacity = tile.style.opacity && tile.style.opacity !== "1" ? ` opacity="${escapeXml(tile.style.opacity)}"` : "";
+    const imageSource = await getEmbeddedImageSource(tile.currentSrc || tile.src);
 
-    return `<image href="${escapeXml(tile.currentSrc || tile.src)}" x="${roundSvgNumber(x)}" y="${roundSvgNumber(y)}" width="${roundSvgNumber(width)}" height="${roundSvgNumber(height)}"${opacity}></image>`;
-  }).filter(Boolean);
+    return `<image href="${escapeXml(imageSource)}" xlink:href="${escapeXml(imageSource)}" x="${roundSvgNumber(x)}" y="${roundSvgNumber(y)}" width="${roundSvgNumber(width)}" height="${roundSvgNumber(height)}"${opacity}></image>`;
+  }));
 
-  return images.length ? `<g id="map-tiles">\n${images.join("\n")}\n</g>` : "";
+  const visibleImages = images.filter(Boolean);
+
+  return visibleImages.length ? `<g id="map-tiles">\n${visibleImages.join("\n")}\n</g>` : "";
 }
 
 function createSvgOverlayLayer(crop) {
@@ -1180,6 +1186,30 @@ function createSvgOverlayLayer(crop) {
 
 function createSvgAttribution(width, height) {
   return `<text x="${Math.max(8, width - 8)}" y="${Math.max(14, height - 8)}" text-anchor="end" font-family="Arial, sans-serif" font-size="11" fill="#5b6875">© openrouteservice.org by HeiGIT | Map data © OpenStreetMap contributors</text>`;
+}
+
+async function getEmbeddedImageSource(source) {
+  try {
+    const response = await fetch(source, { mode: "cors" });
+
+    if (!response.ok) {
+      throw new Error("Tile image request failed");
+    }
+
+    return await blobToDataUrl(await response.blob());
+  } catch (error) {
+    return source;
+  }
+}
+
+function blobToDataUrl(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+
+    reader.addEventListener("load", () => resolve(reader.result));
+    reader.addEventListener("error", () => reject(reader.error));
+    reader.readAsDataURL(blob);
+  });
 }
 
 function rectsIntersect(first, second) {

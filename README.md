@@ -64,7 +64,7 @@ Fetched overlays can be saved to local browser storage and loaded later without 
 
 Hosted OpenRouteService currently limits driving isochrones to 1 hour. Larger demo bands can be previewed locally, and larger real driving maps will need another provider or a self-hosted routing setup.
 
-Use **Prepare export** to show the blue export frame, adjust it, then use **Export SVG** to download the selected rectangle. The SVG references live map tile URLs, so reopen it with network access if you want the base map tiles to render.
+Use **Prepare export** to show the blue export frame, adjust it, then use **Export SVG** to download the selected rectangle. The export embeds visible map tiles when the tile provider allows browser embedding, which makes the SVG easier to open in design tools such as Illustrator.
 
 The default bands are now 1, 5, 10, 15, 20, 30, 45, and 60 minutes.
 
