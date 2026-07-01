@@ -778,3 +778,21 @@ Tried:
 - Added a "Click map to add routes" checkbox.
 - Added a map click handler that calls OpenRouteService directions and redraws the route layer.
 - Added cursor feedback while route picking is active or fetching.
+
+## 2026-07-01 - Adjustable route thickness
+
+Participants:
+- Human: Nuno
+- AI: Codex
+
+Goal:
+- Let users control how visually prominent route paths are.
+
+Decisions:
+- Add a path-thickness slider near the route display controls.
+- Apply the selected thickness to all route paths, including sampled and manually picked routes.
+- Save route thickness with overlay composition settings.
+
+Tried:
+- Added a `Path thickness` range input.
+- Re-rendered route layers live as the slider changes.

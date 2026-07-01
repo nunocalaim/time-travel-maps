@@ -44,6 +44,7 @@ It currently uses:
 - Optional sample-route fetching from random points inside isochrone bands as a proof of concept.
 - Turf.js-powered route segment coloring on the `polygon-library` experiment branch.
 - Route coloring modes for smoothed band color, raw band color, outbound monotone, and destination color.
+- Adjustable route/path thickness for route overlays.
 - Right-click-to-set origin refinement on the map.
 - SVG export through a selectable map area.
 - SVG export quality options for screen, 2x, and 4x output dimensions.

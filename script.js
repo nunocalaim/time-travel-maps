@@ -110,6 +110,7 @@ const mapStyleSelect = document.querySelector("#map-style");
 const overlayPaletteSelect = document.querySelector("#overlay-palette");
 const routeColoringSelect = document.querySelector("#route-coloring");
 const manualRouteModeInput = document.querySelector("#manual-route-mode");
+const routeThicknessInput = document.querySelector("#route-thickness");
 const maxTimeSelect = document.querySelector("#max-time");
 const overlayOpacityInput = document.querySelector("#overlay-opacity");
 const exportQualitySelect = document.querySelector("#export-quality");
@@ -233,6 +234,10 @@ routeColoringSelect.addEventListener("change", () => {
 
 manualRouteModeInput.addEventListener("change", () => {
   updateManualRouteModeState();
+});
+
+routeThicknessInput.addEventListener("input", () => {
+  updateRouteThickness();
 });
 
 prepareExportButton.addEventListener("click", () => {
@@ -1169,6 +1174,7 @@ function getCurrentCompositionSettings() {
     mapStyle: mapStyleSelect.value,
     palette: overlayPaletteSelect.value,
     routeColoring: routeColoringSelect.value,
+    routeThickness: routeThicknessInput.value,
     opacity: overlayOpacityInput.value,
     exportQuality: exportQualitySelect.value,
     title: exportTitleInput.value,
@@ -1198,6 +1204,7 @@ function applyCompositionSettings(composition = {}) {
   }
 
   routeColoringSelect.value = composition.routeColoring || "smoothed";
+  routeThicknessInput.value = composition.routeThickness || "10";
 
   if (composition.opacity) {
     overlayOpacityInput.value = composition.opacity;
@@ -1318,7 +1325,7 @@ function drawSampleRoutes(routes) {
           style: {
             color: getBandColor(segment.minutes),
             opacity: 0.88,
-            weight: 10,
+            weight: getRouteThickness(),
             lineCap: "round",
             lineJoin: "round",
           },
@@ -1832,6 +1839,18 @@ function updateOverlayOpacity() {
       layer.setStyle({ fillOpacity: getOverlayOpacity() });
     }
   });
+}
+
+function getRouteThickness() {
+  return Number(routeThicknessInput.value) || 10;
+}
+
+function updateRouteThickness() {
+  if (currentOverlayResult?.routes?.length) {
+    drawSampleRoutes(currentOverlayResult.routes);
+  }
+
+  setStatus(`Path thickness set to ${getRouteThickness()} px.`);
 }
 
 function createExportFrame() {
