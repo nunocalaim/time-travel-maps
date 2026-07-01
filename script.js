@@ -111,6 +111,7 @@ const overlayPaletteSelect = document.querySelector("#overlay-palette");
 const routeColoringSelect = document.querySelector("#route-coloring");
 const manualRouteModeInput = document.querySelector("#manual-route-mode");
 const routeThicknessInput = document.querySelector("#route-thickness");
+const routeOpacityInput = document.querySelector("#route-opacity");
 const maxTimeSelect = document.querySelector("#max-time");
 const overlayOpacityInput = document.querySelector("#overlay-opacity");
 const exportQualitySelect = document.querySelector("#export-quality");
@@ -237,7 +238,11 @@ manualRouteModeInput.addEventListener("change", () => {
 });
 
 routeThicknessInput.addEventListener("input", () => {
-  updateRouteThickness();
+  updateRouteAppearance("Path thickness", `${getRouteThickness()} px`);
+});
+
+routeOpacityInput.addEventListener("input", () => {
+  updateRouteAppearance("Path transparency", `${routeOpacityInput.value}%`);
 });
 
 prepareExportButton.addEventListener("click", () => {
@@ -1175,6 +1180,7 @@ function getCurrentCompositionSettings() {
     palette: overlayPaletteSelect.value,
     routeColoring: routeColoringSelect.value,
     routeThickness: routeThicknessInput.value,
+    routeOpacity: routeOpacityInput.value,
     opacity: overlayOpacityInput.value,
     exportQuality: exportQualitySelect.value,
     title: exportTitleInput.value,
@@ -1205,6 +1211,7 @@ function applyCompositionSettings(composition = {}) {
 
   routeColoringSelect.value = composition.routeColoring || "smoothed";
   routeThicknessInput.value = composition.routeThickness || "10";
+  routeOpacityInput.value = composition.routeOpacity || "88";
 
   if (composition.opacity) {
     overlayOpacityInput.value = composition.opacity;
@@ -1324,7 +1331,7 @@ function drawSampleRoutes(routes) {
         L.geoJSON(segment.feature, {
           style: {
             color: getBandColor(segment.minutes),
-            opacity: 0.88,
+            opacity: getRouteOpacity(),
             weight: getRouteThickness(),
             lineCap: "round",
             lineJoin: "round",
@@ -1845,12 +1852,16 @@ function getRouteThickness() {
   return Number(routeThicknessInput.value) || 10;
 }
 
-function updateRouteThickness() {
+function getRouteOpacity() {
+  return (Number(routeOpacityInput.value) || 88) / 100;
+}
+
+function updateRouteAppearance(label, value) {
   if (currentOverlayResult?.routes?.length) {
     drawSampleRoutes(currentOverlayResult.routes);
   }
 
-  setStatus(`Path thickness set to ${getRouteThickness()} px.`);
+  setStatus(`${label} set to ${value}.`);
 }
 
 function createExportFrame() {

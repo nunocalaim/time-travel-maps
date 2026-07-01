@@ -796,3 +796,21 @@ Decisions:
 Tried:
 - Added a `Path thickness` range input.
 - Re-rendered route layers live as the slider changes.
+
+## 2026-07-01 - Adjustable route transparency
+
+Participants:
+- Human: Nuno
+- AI: Codex
+
+Goal:
+- Let users control how strongly route paths appear over the map and isochrone bands.
+
+Decisions:
+- Add a path-transparency slider beside the path-thickness slider.
+- Apply the selected transparency to all sampled and manually picked routes.
+- Save route transparency with overlay composition settings.
+
+Tried:
+- Added a `Path transparency` range input.
+- Reused the route redraw path for both thickness and transparency changes.
