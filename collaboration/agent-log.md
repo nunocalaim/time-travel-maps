@@ -814,3 +814,22 @@ Decisions:
 Tried:
 - Added a `Path transparency` range input.
 - Reused the route redraw path for both thickness and transparency changes.
+
+## 2026-07-01 - Grouped SVG export layers
+
+Participants:
+- Human: Nuno
+- AI: Codex
+
+Goal:
+- Make exported SVGs easier to edit in Illustrator by grouping map components into meaningful layers.
+
+Decisions:
+- Keep raster map tiles in a `map-tiles` group.
+- Export real isochrone polygons from GeoJSON into a `travel-time-overlays` group with one subgroup per time band/color.
+- Export route paths into a `route-paths` group with one subgroup per time band/color.
+- Keep the Leaflet SVG clone as a fallback for demo/vector overlays.
+
+Tried:
+- Replaced the real-overlay SVG export clone with explicit SVG path generation from map coordinates.
+- Preserved current overlay opacity, route thickness, route transparency, and route coloring in the grouped export.

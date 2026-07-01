@@ -2108,6 +2108,15 @@ async function createSvgTileLayer(crop) {
 }
 
 function createSvgOverlayLayer(crop) {
+  const groupedLayers = [
+    createSvgIsochroneOverlayLayer(crop),
+    createSvgRouteLayer(crop),
+  ].filter(Boolean).join("\n");
+
+  return groupedLayers || createSvgLeafletOverlayLayer(crop);
+}
+
+function createSvgLeafletOverlayLayer(crop) {
   const overlaySvg = map.getContainer().querySelector(".leaflet-overlay-pane svg");
 
   if (!overlaySvg) {
@@ -2121,6 +2130,7 @@ function createSvgOverlayLayer(crop) {
   clone.querySelectorAll(".export-frame").forEach((element) => element.remove());
   clone.removeAttribute("class");
   clone.removeAttribute("style");
+  clone.setAttribute("id", "leaflet-vector-overlays");
   clone.setAttribute("x", roundSvgNumber(overlayRect.left - mapRect.left - crop.left));
   clone.setAttribute("y", roundSvgNumber(overlayRect.top - mapRect.top - crop.top));
   clone.setAttribute("width", roundSvgNumber(overlayRect.width));
@@ -2128,6 +2138,125 @@ function createSvgOverlayLayer(crop) {
   clone.setAttribute("overflow", "visible");
 
   return new XMLSerializer().serializeToString(clone);
+}
+
+function createSvgIsochroneOverlayLayer(crop) {
+  if (!currentOverlayResult || currentOverlayResult.type !== "geojson") {
+    return "";
+  }
+
+  const bands = groupSvgFeaturesByMinutes(
+    createBandedIsochroneFeatures(currentOverlayResult.geojson.features || []),
+    (feature) => {
+      const minutes = getIsochroneMinutes(feature);
+      const paths = getGeometryPolygons(feature.geometry)
+        .map((polygon) => createSvgPolygonPath(polygon, crop))
+        .filter(Boolean);
+
+      return paths.map((path) => {
+        const color = getBandColor(minutes);
+
+        return `<path d="${path}" fill="${color}" fill-opacity="${roundSvgNumber(getOverlayOpacity())}" fill-rule="evenodd" stroke="${color}" stroke-opacity="0.85" stroke-width="2"></path>`;
+      });
+    }
+  );
+
+  return bands.length ? `<g id="travel-time-overlays">\n${bands.join("\n")}\n</g>` : "";
+}
+
+function createSvgRouteLayer(crop) {
+  const routes = currentOverlayResult?.routes || [];
+
+  if (!routes.length) {
+    return "";
+  }
+
+  const bandFeatures = currentOverlayResult?.geojson
+    ? createBandedIsochroneFeatures(currentOverlayResult.geojson.features || [])
+    : [];
+  const segments = routes
+    .slice()
+    .sort((a, b) => getRouteDurationSeconds(b) - getRouteDurationSeconds(a))
+    .flatMap((route) => getColorCodedRouteSegments(route, bandFeatures));
+  const bands = groupSvgFeaturesByMinutes(segments, (segment) => {
+    const lines = getRouteCoordinateLines(segment.feature.geometry);
+
+    return lines.map((line) => {
+      const path = createSvgLinePath(line, crop);
+
+      if (!path) {
+        return "";
+      }
+
+      return `<path d="${path}" fill="none" stroke="${getBandColor(segment.minutes)}" stroke-opacity="${roundSvgNumber(getRouteOpacity())}" stroke-width="${roundSvgNumber(getRouteThickness())}" stroke-linecap="round" stroke-linejoin="round"></path>`;
+    }).filter(Boolean);
+  }, "paths");
+
+  return bands.length ? `<g id="route-paths">\n${bands.join("\n")}\n</g>` : "";
+}
+
+function groupSvgFeaturesByMinutes(features, createElements, prefix = "overlay") {
+  const grouped = new Map();
+
+  features.forEach((feature) => {
+    const minutes = feature.minutes || getIsochroneMinutes(feature);
+    const elements = createElements(feature);
+
+    if (!elements.length) {
+      return;
+    }
+
+    grouped.set(minutes, [
+      ...(grouped.get(minutes) || []),
+      ...elements,
+    ]);
+  });
+
+  return [...grouped.entries()]
+    .sort((a, b) => b[0] - a[0])
+    .map(([minutes, elements]) => {
+      const color = getBandColor(minutes);
+      const id = `${prefix}-${minutes}-min`;
+
+      return `<g id="${id}" data-minutes="${minutes}" data-color="${color}">\n${elements.join("\n")}\n</g>`;
+    });
+}
+
+function createSvgPolygonPath(polygon, crop) {
+  return polygon.map((ring) => createSvgRingPath(ring, crop)).filter(Boolean).join(" ");
+}
+
+function createSvgRingPath(ring, crop) {
+  const points = ring.map(([lng, lat]) => projectLngLatForSvg(lng, lat, crop));
+
+  if (!points.length) {
+    return "";
+  }
+
+  return `${points.map((point, index) => {
+    return `${index === 0 ? "M" : "L"} ${roundSvgNumber(point.x)} ${roundSvgNumber(point.y)}`;
+  }).join(" ")} Z`;
+}
+
+function createSvgLinePath(line, crop) {
+  const points = line.map(([lng, lat]) => projectLngLatForSvg(lng, lat, crop));
+
+  if (points.length < 2) {
+    return "";
+  }
+
+  return points.map((point, index) => {
+    return `${index === 0 ? "M" : "L"} ${roundSvgNumber(point.x)} ${roundSvgNumber(point.y)}`;
+  }).join(" ");
+}
+
+function projectLngLatForSvg(lng, lat, crop) {
+  const point = map.latLngToContainerPoint([lat, lng]);
+
+  return {
+    x: point.x - crop.left,
+    y: point.y - crop.top,
+  };
 }
 
 function createSvgAttribution(width, height) {

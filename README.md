@@ -47,6 +47,7 @@ It currently uses:
 - Adjustable route/path thickness and transparency for route overlays.
 - Right-click-to-set origin refinement on the map.
 - SVG export through a selectable map area.
+- Grouped SVG export layers for map tiles, isochrone bands, and route paths.
 - SVG export quality options for screen, 2x, and 4x output dimensions.
 - Optional SVG title, subtitle, annotation, legend, metadata, origin label, and time-band labels.
 - Explicit OpenRouteService/OpenStreetMap attribution in the UI and print layout.
