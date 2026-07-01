@@ -1227,19 +1227,6 @@ function drawSampleRoutes(routes) {
           },
         }).addTo(routeLayer);
       });
-
-      if (route.destination) {
-        const color = getBandColor(route.bandMinutes);
-
-        L.circleMarker([route.destination[1], route.destination[0]], {
-          radius: 9,
-          color: "#ffffff",
-          fillColor: color,
-          fillOpacity: 1,
-          opacity: 1,
-          weight: 4,
-        }).addTo(routeLayer);
-      }
     });
 }
 

@@ -742,3 +742,19 @@ Tried:
 Open Questions:
 - Tune the route cap and minimum-per-band count after testing real API usage.
 - Consider using Turf area calculations if this approximate local projection becomes visibly inaccurate.
+
+## 2026-07-01 - Hide sample route endpoints
+
+Participants:
+- Human: Nuno
+- AI: Codex
+
+Goal:
+- Keep sample-route maps focused on actual returned road paths instead of sampled destination points.
+
+Decision:
+- Stop drawing destination endpoint markers for sample routes.
+- Keep destination coordinates in the route data for saved overlays and diagnostics.
+
+Tried:
+- Removed the Leaflet circle marker drawn at each sampled route destination.
