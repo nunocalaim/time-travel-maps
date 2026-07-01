@@ -1501,23 +1501,173 @@ function createSvgBandLabels(crop) {
     return "";
   }
 
-  return (currentOverlayResult.geojson.features || []).map((feature) => {
-    const bounds = L.geoJSON(feature).getBounds();
+  return createBandedIsochroneFeatures(currentOverlayResult.geojson.features || []).map((feature) => {
+    const point = getFeatureLabelPoint(feature, crop);
 
-    if (!bounds.isValid()) {
+    if (!point) {
       return "";
     }
 
-    const point = map.latLngToContainerPoint(bounds.getCenter());
-    const x = point.x - crop.left;
-    const y = point.y - crop.top;
-
-    if (!pointInsideCrop(x, y, crop)) {
-      return "";
-    }
-
-    return createSvgText(`${getIsochroneMinutes(feature)} min`, x, y, { size: 12, weight: 700, anchor: "middle" });
+    return createSvgText(`${getIsochroneMinutes(feature)} min`, point.x, point.y, { size: 12, weight: 700, anchor: "middle" });
   }).filter(Boolean).join("\n");
+}
+
+function getFeatureLabelPoint(feature, crop) {
+  const polygons = getGeometryPolygons(feature.geometry)
+    .map((polygon) => projectPolygonRings(polygon, crop))
+    .filter((rings) => rings.length && rings[0].length);
+  const candidates = polygons
+    .map((rings) => getPolygonLabelCandidate(rings, crop))
+    .filter(Boolean)
+    .sort((a, b) => b.score - a.score);
+
+  return candidates[0] || null;
+}
+
+function getGeometryPolygons(geometry) {
+  if (!geometry) {
+    return [];
+  }
+
+  if (geometry.type === "Polygon") {
+    return [geometry.coordinates];
+  }
+
+  if (geometry.type === "MultiPolygon") {
+    return geometry.coordinates;
+  }
+
+  return [];
+}
+
+function projectPolygonRings(polygon, crop) {
+  return polygon.map((ring) => {
+    return ring.map(([lng, lat]) => {
+      const point = map.latLngToContainerPoint([lat, lng]);
+
+      return {
+        x: point.x - crop.left,
+        y: point.y - crop.top,
+      };
+    });
+  });
+}
+
+function getPolygonLabelCandidate(rings, crop) {
+  const bounds = getRingBounds(rings[0]);
+  const left = Math.max(0, bounds.left);
+  const right = Math.min(crop.width, bounds.right);
+  const top = Math.max(0, bounds.top);
+  const bottom = Math.min(crop.height, bounds.bottom);
+
+  if (left >= right || top >= bottom) {
+    return null;
+  }
+
+  const candidates = [];
+  const steps = 18;
+
+  for (let row = 1; row < steps; row += 1) {
+    for (let column = 1; column < steps; column += 1) {
+      const point = {
+        x: left + ((right - left) * column) / steps,
+        y: top + ((bottom - top) * row) / steps,
+      };
+
+      if (!pointInPolygonRings(point, rings)) {
+        continue;
+      }
+
+      candidates.push({
+        ...point,
+        score: getLabelPointScore(point, rings, crop),
+      });
+    }
+  }
+
+  if (!candidates.length) {
+    return getFallbackPolygonLabelCandidate(rings, crop);
+  }
+
+  return candidates.sort((a, b) => b.score - a.score)[0];
+}
+
+function getRingBounds(ring) {
+  return ring.reduce((bounds, point) => {
+    return {
+      left: Math.min(bounds.left, point.x),
+      right: Math.max(bounds.right, point.x),
+      top: Math.min(bounds.top, point.y),
+      bottom: Math.max(bounds.bottom, point.y),
+    };
+  }, {
+    left: Infinity,
+    right: -Infinity,
+    top: Infinity,
+    bottom: -Infinity,
+  });
+}
+
+function pointInPolygonRings(point, rings) {
+  if (!pointInRing(point, rings[0])) {
+    return false;
+  }
+
+  return !rings.slice(1).some((ring) => pointInRing(point, ring));
+}
+
+function pointInRing(point, ring) {
+  let inside = false;
+
+  for (let index = 0, previousIndex = ring.length - 1; index < ring.length; previousIndex = index, index += 1) {
+    const current = ring[index];
+    const previous = ring[previousIndex];
+    const intersects = ((current.y > point.y) !== (previous.y > point.y))
+      && point.x < ((previous.x - current.x) * (point.y - current.y)) / (previous.y - current.y) + current.x;
+
+    if (intersects) {
+      inside = !inside;
+    }
+  }
+
+  return inside;
+}
+
+function getLabelPointScore(point, rings, crop) {
+  const boundaryDistance = Math.min(...rings.flatMap((ring) => {
+    return ring.slice(1).map((end, index) => {
+      return distanceToSegment(point, ring[index], end);
+    });
+  }));
+  const cropDistance = Math.min(point.x, point.y, crop.width - point.x, crop.height - point.y);
+
+  return Math.min(boundaryDistance, cropDistance);
+}
+
+function distanceToSegment(point, start, end) {
+  const dx = end.x - start.x;
+  const dy = end.y - start.y;
+  const lengthSquared = dx * dx + dy * dy;
+
+  if (!lengthSquared) {
+    return Math.hypot(point.x - start.x, point.y - start.y);
+  }
+
+  const t = Math.max(0, Math.min(1, ((point.x - start.x) * dx + (point.y - start.y) * dy) / lengthSquared));
+  const projection = {
+    x: start.x + t * dx,
+    y: start.y + t * dy,
+  };
+
+  return Math.hypot(point.x - projection.x, point.y - projection.y);
+}
+
+function getFallbackPolygonLabelCandidate(rings, crop) {
+  const point = rings[0].find((candidate) => {
+    return pointInsideCrop(candidate.x, candidate.y, crop);
+  });
+
+  return point ? { ...point, score: 0 } : null;
 }
 
 function createSvgLegend(width, height) {
