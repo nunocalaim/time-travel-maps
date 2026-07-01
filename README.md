@@ -62,7 +62,7 @@ The colored circles are placeholders. They are not real travel-time data yet; th
 
 To try real isochrones, create an OpenRouteService API key, paste it into the page, and click **Get real data**. The key is stored only in `sessionStorage` for the current browser session, not committed to the repo.
 
-Turn on **Also fetch sample routes** before fetching real isochrones to sample random destinations inside the bands and draw OpenRouteService routes to them. This is intentionally API-call-heavy and capped for the prototype.
+Turn on **Also fetch sample routes** before fetching real isochrones to sample random destinations inside the bands and draw OpenRouteService routes to them. The sampler keeps a small minimum per band, then gives larger bands more samples by approximate area. This is intentionally API-call-heavy and capped for the prototype.
 
 For a persistent local key, copy `config.local.example.js` to `config.local.js` and add your key there. `config.local.js` is ignored by Git.
 

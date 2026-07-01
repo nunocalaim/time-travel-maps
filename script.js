@@ -70,16 +70,7 @@ const EXPORT_MAX_PAGE_WIDTH = 1056;
 const EXPORT_MAX_PAGE_HEIGHT = 816;
 const FETCH_REAL_DATA_LABEL = "Get real data";
 const MAX_SAMPLE_ROUTES = 72;
-const ROUTE_SAMPLE_COUNTS = {
-  1: 2,
-  5: 5,
-  10: 8,
-  15: 8,
-  20: 10,
-  30: 10,
-  45: 10,
-  60: 10,
-};
+const MIN_ROUTE_SAMPLES_PER_BAND = 2;
 
 const mapStyles = {
   voyager: {
@@ -642,11 +633,12 @@ async function getOpenRouteServiceRoute({ apiKey, profile, origin, destination }
 function sampleRouteDestinations(geojson) {
   const bandedFeatures = createBandedIsochroneFeatures(geojson.features || [])
     .sort((a, b) => getIsochroneMinutes(a) - getIsochroneMinutes(b));
+  const sampleCounts = getAreaWeightedRouteSampleCounts(bandedFeatures);
   const destinationsByBand = [];
 
   for (const feature of bandedFeatures) {
     const minutes = getIsochroneMinutes(feature);
-    const count = getRouteSampleCount(minutes);
+    const count = sampleCounts.get(feature) || MIN_ROUTE_SAMPLES_PER_BAND;
     const destinations = samplePointsInFeature(feature, count).map((coordinates) => {
       return { minutes, coordinates };
     });
@@ -658,6 +650,43 @@ function sampleRouteDestinations(geojson) {
 
   return interleaveDestinationsByBand(destinationsByBand)
     .slice(0, MAX_SAMPLE_ROUTES);
+}
+
+function getAreaWeightedRouteSampleCounts(features) {
+  const bands = features.map((feature) => ({
+    feature,
+    area: Math.max(0, getFeatureAreaSquareMeters(feature)),
+  }));
+  const totalArea = bands.reduce((total, band) => total + band.area, 0);
+  const minimumTotal = bands.length * MIN_ROUTE_SAMPLES_PER_BAND;
+  const extraBudget = Math.max(0, MAX_SAMPLE_ROUTES - minimumTotal);
+  const counts = new Map();
+  let allocated = 0;
+
+  bands.forEach((band) => {
+    const idealExtra = totalArea ? (band.area / totalArea) * extraBudget : 0;
+    const extra = Math.floor(idealExtra);
+    const count = MIN_ROUTE_SAMPLES_PER_BAND + extra;
+
+    band.remainder = idealExtra - extra;
+    counts.set(band.feature, count);
+    allocated += count;
+  });
+
+  const sortedBands = bands.slice().sort((a, b) => {
+    return b.remainder - a.remainder || b.area - a.area;
+  });
+  let index = 0;
+
+  while (allocated < MAX_SAMPLE_ROUTES && sortedBands.length) {
+    const band = sortedBands[index % sortedBands.length];
+
+    counts.set(band.feature, counts.get(band.feature) + 1);
+    allocated += 1;
+    index += 1;
+  }
+
+  return counts;
 }
 
 function interleaveDestinationsByBand(destinationsByBand) {
@@ -680,19 +709,18 @@ function interleaveDestinationsByBand(destinationsByBand) {
   return interleaved;
 }
 
-function getRouteSampleCount(minutes) {
-  return ROUTE_SAMPLE_COUNTS[minutes] || 6;
-}
-
 function samplePointsInFeature(feature, count) {
-  const polygons = getGeometryPolygons(feature.geometry);
+  const polygons = getGeometryPolygons(feature.geometry).map((polygon) => ({
+    polygon,
+    area: getGeoPolygonAreaSquareMeters(polygon),
+  }));
   const points = [];
   let attempts = 0;
   const maxAttempts = count * 500;
 
   while (points.length < count && attempts < maxAttempts) {
     attempts += 1;
-    const polygon = polygons[Math.floor(Math.random() * polygons.length)];
+    const polygon = pickWeightedPolygon(polygons);
 
     if (!polygon) {
       break;
@@ -710,6 +738,26 @@ function samplePointsInFeature(feature, count) {
   }
 
   return points;
+}
+
+function pickWeightedPolygon(polygons) {
+  const totalArea = polygons.reduce((total, entry) => total + entry.area, 0);
+
+  if (!totalArea) {
+    return polygons[Math.floor(Math.random() * polygons.length)]?.polygon;
+  }
+
+  let target = Math.random() * totalArea;
+
+  for (const entry of polygons) {
+    target -= entry.area;
+
+    if (target <= 0) {
+      return entry.polygon;
+    }
+  }
+
+  return polygons[polygons.length - 1]?.polygon;
 }
 
 function getGeoPolygonBounds(polygon) {
@@ -735,6 +783,50 @@ function pointInGeoPolygon(point, polygon) {
   });
 
   return pointInPolygonRings(projectedPoint, rings);
+}
+
+function getFeatureAreaSquareMeters(feature) {
+  return getGeometryPolygons(feature.geometry).reduce((total, polygon) => {
+    return total + getGeoPolygonAreaSquareMeters(polygon);
+  }, 0);
+}
+
+function getGeoPolygonAreaSquareMeters(polygon) {
+  const referenceLat = getPolygonReferenceLatitude(polygon);
+  const rings = polygon.map((ring) => {
+    return ring.map(([lng, lat]) => projectLngLatToMeters(lng, lat, referenceLat));
+  });
+  const outerArea = Math.abs(getPlanarRingArea(rings[0] || []));
+  const holeArea = rings.slice(1).reduce((total, ring) => {
+    return total + Math.abs(getPlanarRingArea(ring));
+  }, 0);
+
+  return Math.max(0, outerArea - holeArea);
+}
+
+function getPolygonReferenceLatitude(polygon) {
+  const ring = polygon[0] || [];
+  const total = ring.reduce((sum, coordinate) => sum + coordinate[1], 0);
+
+  return ring.length ? total / ring.length : 0;
+}
+
+function projectLngLatToMeters(lng, lat, referenceLat) {
+  const metersPerDegreeLat = 111320;
+  const metersPerDegreeLng = metersPerDegreeLat * Math.cos(degreesToRadians(referenceLat));
+
+  return {
+    x: lng * metersPerDegreeLng,
+    y: lat * metersPerDegreeLat,
+  };
+}
+
+function getPlanarRingArea(ring) {
+  return ring.reduce((area, point, index) => {
+    const next = ring[(index + 1) % ring.length];
+
+    return area + point.x * next.y - next.x * point.y;
+  }, 0) / 2;
 }
 
 function getOpenRouteServiceProfile(mode) {

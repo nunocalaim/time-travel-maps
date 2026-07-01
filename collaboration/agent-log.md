@@ -719,3 +719,26 @@ Tried:
 
 Next:
 - Test whether far-band routes appear even when some route requests fail.
+
+## 2026-07-01 - Area-weighted route sampling
+
+Participants:
+- Human: Nuno
+- AI: Codex
+
+Goal:
+- Make sample-route destinations reflect that farther/red bands usually cover more area than near/green bands.
+
+Decisions:
+- Replace fixed per-band route counts with an area-weighted allocation.
+- Keep a small minimum number of routes per band so narrow inner bands still appear.
+- Spend the remaining route budget proportionally to approximate band area.
+- Preserve far-to-near interleaving so outer bands are still requested early.
+
+Tried:
+- Added approximate polygon area calculation for isochrone bands.
+- Weighted MultiPolygon sampling by polygon area, so larger pieces get proportionally more candidate destinations.
+
+Open Questions:
+- Tune the route cap and minimum-per-band count after testing real API usage.
+- Consider using Turf area calculations if this approximate local projection becomes visibly inaccurate.
