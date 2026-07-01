@@ -41,6 +41,7 @@ It currently uses:
 - A provider-shaped travel-time boundary in `script.js`, currently set to `demo`.
 - A small map-style selector for detailed, light, and dark base maps.
 - Optional OpenRouteService isochrones when an API key is pasted into the local page.
+- Optional sample-route fetching from random points inside isochrone bands as a proof of concept.
 - Right-click-to-set origin refinement on the map.
 - SVG export through a selectable map area.
 - SVG export quality options for screen, 2x, and 4x output dimensions.
@@ -58,6 +59,8 @@ If tiles appear scrambled or misaligned, the Leaflet stylesheet is probably bloc
 The colored circles are placeholders. They are not real travel-time data yet; the next technical step is to replace them with isochrone polygons from a routing provider.
 
 To try real isochrones, create an OpenRouteService API key, paste it into the page, and click **Fetch real isochrones**. The key is stored only in `sessionStorage` for the current browser session, not committed to the repo.
+
+Turn on **Also fetch sample routes** before fetching real isochrones to sample random destinations inside the bands and draw OpenRouteService routes to them. This is intentionally API-call-heavy and capped for the prototype.
 
 For a persistent local key, copy `config.local.example.js` to `config.local.js` and add your key there. `config.local.js` is ignored by Git.
 

@@ -572,3 +572,31 @@ Open Questions:
 
 Next:
 - Test SVG exports in Illustrator with titles, metadata, labels, and each palette.
+
+## 2026-07-01 - Sample route proof of concept
+
+Participants:
+- Human: Nuno
+- AI: Codex
+
+Goal:
+- Explore showing example routes instead of only filled isochrone bands.
+
+Decisions:
+- Keep route fetching opt-in because it can require many more OpenRouteService calls.
+- Use the existing real-isochrone fetch flow as the entry point: fetch isochrones, sample points in the band polygons, then request directions to those destinations.
+- Draw longer routes first and color each route by the destination band.
+- Cap route sampling for the prototype to avoid accidentally making a very large number of API calls.
+
+Tried:
+- Added an "Also fetch sample routes" checkbox under Real data.
+- Sampled random points inside the visible band geometries.
+- Requested OpenRouteService directions for sampled destinations.
+- Rendered route GeoJSON in a separate route layer so SVG export includes it.
+
+Open Questions:
+- Should route sampling be deterministic from a saved seed so reloading a saved map reproduces the same routes?
+- Should users control per-band sample counts directly?
+
+Next:
+- Test route sampling with a real ORS key and watch rate-limit behavior.

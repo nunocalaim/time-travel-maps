@@ -60,6 +60,7 @@ const overlayPalettes = {
 };
 
 const ORS_ENDPOINT = "https://api.openrouteservice.org/v2/isochrones";
+const ORS_DIRECTIONS_ENDPOINT = "https://api.openrouteservice.org/v2/directions";
 const ORS_KEY_STORAGE = "time-to-x:ors-api-key";
 const LAST_ORIGIN_STORAGE = "isochrones:last-origin";
 const SAVED_OVERLAYS_STORAGE = "isochrones:saved-overlays";
@@ -92,6 +93,7 @@ const mapStyles = {
 const toggleSidebarButton = document.querySelector("#toggle-sidebar");
 const orsApiKeyInput = document.querySelector("#ors-api-key");
 const fetchRealDataButton = document.querySelector("#fetch-real-data");
+const includeSampleRoutesInput = document.querySelector("#include-sample-routes");
 const saveOverlayButton = document.querySelector("#save-overlay");
 const clearApiKeyButton = document.querySelector("#clear-api-key");
 const savedOverlaysSelect = document.querySelector("#saved-overlays");
@@ -135,6 +137,7 @@ L.control.zoom({ position: "bottomright" }).addTo(map);
 let baseLayer = createBaseLayer(mapStyles.voyager).addTo(map);
 
 let overlayLayer = L.featureGroup().addTo(map);
+let routeLayer = L.featureGroup().addTo(map);
 let originMarker = createOriginMarker(initialPlace.lat, initialPlace.lng, initialPlace.label).addTo(map);
 let exportFrame = createExportFrame();
 let exportHandles = createExportHandles();
@@ -383,6 +386,7 @@ async function setOrigin(lat, lng, label, options = {}) {
   if (currentOverlayResult && currentOverlayResult.type === "geojson" && !options.preserveRealData) {
     currentOverlayResult = null;
     overlayLayer.clearLayers();
+    routeLayer.clearLayers();
     updateOverlayToolsVisibility();
     exitExportMode();
     setStatus("Starting point set. Click Fetch real isochrones to create a real overlay.");
@@ -448,6 +452,7 @@ async function refreshTravelTimeOverlay(lat, lng) {
       minutes,
       requestedMinutes,
       provider,
+      includeRoutes: provider === "openrouteservice" && includeSampleRoutesInput.checked,
     });
 
     currentOverlayResult = result;
@@ -513,13 +518,166 @@ async function getOpenRouteServiceOverlay(request) {
   }
 
   const geojson = await response.json();
+  const styledGeojson = styleIsochroneGeoJson(geojson);
+  const routes = request.includeRoutes
+    ? await getOpenRouteServiceSampleRoutes({
+      apiKey,
+      profile,
+      origin: [request.lng, request.lat],
+      geojson: styledGeojson,
+    })
+    : [];
 
   return {
     provider: "openrouteservice",
     type: "geojson",
     requestedMinutes: request.requestedMinutes,
-    geojson: styleIsochroneGeoJson(geojson),
+    geojson: styledGeojson,
+    routes,
   };
+}
+
+async function getOpenRouteServiceSampleRoutes({ apiKey, profile, origin, geojson }) {
+  const destinations = sampleRouteDestinations(geojson);
+  const routes = [];
+
+  for (let index = 0; index < destinations.length; index += 1) {
+    const destination = destinations[index];
+
+    setStatus(`Fetching sample route ${index + 1} of ${destinations.length}...`);
+    routes.push(await getOpenRouteServiceRoute({
+      apiKey,
+      profile,
+      origin,
+      destination,
+    }));
+  }
+
+  return routes
+    .filter(Boolean)
+    .sort((a, b) => getRouteDurationSeconds(b) - getRouteDurationSeconds(a));
+}
+
+async function getOpenRouteServiceRoute({ apiKey, profile, origin, destination }) {
+  try {
+    const response = await fetch(`${ORS_DIRECTIONS_ENDPOINT}/${profile}/geojson`, {
+      method: "POST",
+      headers: {
+        Accept: "application/json, application/geo+json",
+        Authorization: apiKey,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        coordinates: [origin, destination.coordinates],
+      }),
+    });
+
+    if (!response.ok) {
+      return null;
+    }
+
+    const route = await response.json();
+    const feature = route.features?.[0];
+
+    return feature ? {
+      bandMinutes: destination.minutes,
+      destination: destination.coordinates,
+      feature,
+    } : null;
+  } catch (error) {
+    return null;
+  }
+}
+
+function sampleRouteDestinations(geojson) {
+  const bandedFeatures = createBandedIsochroneFeatures(geojson.features || [])
+    .sort((a, b) => getIsochroneMinutes(a) - getIsochroneMinutes(b));
+  const destinations = [];
+  const maxRoutes = 36;
+
+  for (const feature of bandedFeatures) {
+    const minutes = getIsochroneMinutes(feature);
+    const count = Math.min(getRouteSampleCount(minutes), maxRoutes - destinations.length);
+
+    destinations.push(...samplePointsInFeature(feature, count).map((coordinates) => {
+      return { minutes, coordinates };
+    }));
+
+    if (destinations.length >= maxRoutes) {
+      break;
+    }
+  }
+
+  return destinations;
+}
+
+function getRouteSampleCount(minutes) {
+  if (minutes <= 5) {
+    return 5;
+  }
+
+  if (minutes <= 10) {
+    return 10;
+  }
+
+  if (minutes <= 20) {
+    return 15;
+  }
+
+  return 6;
+}
+
+function samplePointsInFeature(feature, count) {
+  const polygons = getGeometryPolygons(feature.geometry);
+  const points = [];
+  let attempts = 0;
+  const maxAttempts = count * 500;
+
+  while (points.length < count && attempts < maxAttempts) {
+    attempts += 1;
+    const polygon = polygons[Math.floor(Math.random() * polygons.length)];
+
+    if (!polygon) {
+      break;
+    }
+
+    const bounds = getGeoPolygonBounds(polygon);
+    const point = [
+      bounds.west + Math.random() * (bounds.east - bounds.west),
+      bounds.south + Math.random() * (bounds.north - bounds.south),
+    ];
+
+    if (pointInGeoPolygon(point, polygon)) {
+      points.push(point);
+    }
+  }
+
+  return points;
+}
+
+function getGeoPolygonBounds(polygon) {
+  return polygon[0].reduce((bounds, [lng, lat]) => {
+    return {
+      west: Math.min(bounds.west, lng),
+      east: Math.max(bounds.east, lng),
+      south: Math.min(bounds.south, lat),
+      north: Math.max(bounds.north, lat),
+    };
+  }, {
+    west: Infinity,
+    east: -Infinity,
+    south: Infinity,
+    north: -Infinity,
+  });
+}
+
+function pointInGeoPolygon(point, polygon) {
+  const projectedPoint = { x: point[0], y: point[1] };
+  const rings = polygon.map((ring) => {
+    return ring.map(([lng, lat]) => ({ x: lng, y: lat }));
+  });
+
+  return pointInPolygonRings(projectedPoint, rings);
 }
 
 function getOpenRouteServiceProfile(mode) {
@@ -867,6 +1025,7 @@ function updateOverlayToolsVisibility() {
 
 function drawGeoJsonBands(geojson) {
   overlayLayer.clearLayers();
+  routeLayer.clearLayers();
 
   const sortedFeatures = createBandedIsochroneFeatures(geojson.features || []);
 
@@ -885,6 +1044,33 @@ function drawGeoJsonBands(geojson) {
       };
     },
   }).addTo(overlayLayer);
+
+  if (currentOverlayResult?.routes?.length) {
+    drawSampleRoutes(currentOverlayResult.routes);
+  }
+}
+
+function drawSampleRoutes(routes) {
+  routeLayer.clearLayers();
+
+  routes
+    .slice()
+    .sort((a, b) => getRouteDurationSeconds(b) - getRouteDurationSeconds(a))
+    .forEach((route) => {
+      L.geoJSON(route.feature, {
+        style: {
+          color: getBandColor(route.bandMinutes),
+          opacity: 0.72,
+          weight: 3,
+          lineCap: "round",
+          lineJoin: "round",
+        },
+      }).addTo(routeLayer);
+    });
+}
+
+function getRouteDurationSeconds(route) {
+  return route?.feature?.properties?.summary?.duration || 0;
 }
 
 function styleIsochroneGeoJson(geojson) {
@@ -971,6 +1157,7 @@ function getIsochroneMinutes(feature) {
 
 function drawDemoBands(lat, lng, mode, minutes = [1, 5, 10, 15, 20, 30, 45, 60]) {
   overlayLayer.clearLayers();
+  routeLayer.clearLayers();
 
   const minutesToMeters = mode === "walk" ? 80 : 850;
   const bands = [...minutes].sort((a, b) => a - b);
