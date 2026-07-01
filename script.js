@@ -109,6 +109,7 @@ const overlayTools = document.querySelector("#overlay-tools");
 const mapStyleSelect = document.querySelector("#map-style");
 const overlayPaletteSelect = document.querySelector("#overlay-palette");
 const routeColoringSelect = document.querySelector("#route-coloring");
+const manualRouteModeInput = document.querySelector("#manual-route-mode");
 const maxTimeSelect = document.querySelector("#max-time");
 const overlayOpacityInput = document.querySelector("#overlay-opacity");
 const exportQualitySelect = document.querySelector("#export-quality");
@@ -153,6 +154,7 @@ let pendingPrintView = null;
 let pendingPrintCrop = null;
 let dragState = null;
 let savedExportFrameBounds = null;
+let isManualRouteRequestInFlight = false;
 
 orsApiKeyInput.value = getStoredOpenRouteServiceApiKey();
 updateLegendPalette();
@@ -229,6 +231,10 @@ routeColoringSelect.addEventListener("change", () => {
   setStatus(`Route coloring changed to ${routeColoringSelect.selectedOptions[0].textContent}.`);
 });
 
+manualRouteModeInput.addEventListener("change", () => {
+  updateManualRouteModeState();
+});
+
 prepareExportButton.addEventListener("click", () => {
   enterExportMode();
 });
@@ -282,6 +288,14 @@ document.addEventListener("mouseup", () => {
 map.on("contextmenu", async (event) => {
   const { lat, lng } = event.latlng;
   await setOrigin(lat, lng, await getReadableLocationName(lat, lng), { recenter: false });
+});
+
+map.on("click", async (event) => {
+  if (!manualRouteModeInput.checked) {
+    return;
+  }
+
+  await addManualRoute(event.latlng);
 });
 
 map.on("mousemove", (event) => {
@@ -599,6 +613,64 @@ async function getOpenRouteServiceSampleRoutes({ apiKey, profile, origin, geojso
   };
 }
 
+async function addManualRoute(latlng) {
+  if (isExportMode) {
+    setStatus("Finish or cancel export before adding a picked route.");
+    return;
+  }
+
+  if (!currentOverlayResult || currentOverlayResult.type !== "geojson") {
+    setStatus("Create or load a real overlay before picking routes.");
+    return;
+  }
+
+  const apiKey = getOpenRouteServiceApiKey();
+
+  if (!apiKey) {
+    setStatus("Paste an OpenRouteService API key before picking routes.");
+    return;
+  }
+
+  if (isManualRouteRequestInFlight) {
+    setStatus("Already fetching a picked route. Wait a moment before clicking again.");
+    return;
+  }
+
+  isManualRouteRequestInFlight = true;
+  updateManualRouteModeState();
+  setStatus("Fetching route to clicked point...");
+
+  const origin = originMarker.getLatLng();
+  const mode = document.querySelector('input[name="travel-mode"]:checked').value;
+  const route = await getOpenRouteServiceRoute({
+    apiKey,
+    profile: getOpenRouteServiceProfile(mode),
+    origin: [origin.lng, origin.lat],
+    destination: {
+      coordinates: [latlng.lng, latlng.lat],
+      minutes: getBandMinutesAtCoordinate([latlng.lng, latlng.lat]),
+      source: "manual",
+    },
+  });
+
+  isManualRouteRequestInFlight = false;
+  updateManualRouteModeState();
+
+  if (!route) {
+    setStatus("OpenRouteService could not route to that point.");
+    return;
+  }
+
+  route.source = "manual";
+  currentOverlayResult.routes = [
+    ...(currentOverlayResult.routes || []),
+    route,
+  ].sort((a, b) => getRouteDurationSeconds(b) - getRouteDurationSeconds(a));
+  currentOverlayResult.manualRouteCount = (currentOverlayResult.manualRouteCount || 0) + 1;
+  renderTravelTimeOverlay(currentOverlayResult);
+  setStatus(`Added picked route (${Math.round(getRouteDurationSeconds(route) / 60)} min).`);
+}
+
 async function getOpenRouteServiceRoute({ apiKey, profile, origin, destination }) {
   try {
     const response = await fetch(`${ORS_DIRECTIONS_ENDPOINT}/${profile}/geojson`, {
@@ -621,8 +693,9 @@ async function getOpenRouteServiceRoute({ apiKey, profile, origin, destination }
     const feature = route.features?.[0];
 
     return feature ? {
-      bandMinutes: destination.minutes,
+      bandMinutes: destination.minutes || getDurationBandMinutes(feature.properties?.summary?.duration || 0),
       destination: destination.coordinates,
+      source: destination.source || "sample",
       feature,
     } : null;
   } catch (error) {
@@ -1176,7 +1249,31 @@ function renderTravelTimeOverlay(result) {
 }
 
 function updateOverlayToolsVisibility() {
-  overlayTools.classList.toggle("is-hidden", !currentOverlayResult || currentOverlayResult.type !== "geojson");
+  const hasRealOverlay = currentOverlayResult && currentOverlayResult.type === "geojson";
+
+  overlayTools.classList.toggle("is-hidden", !hasRealOverlay);
+
+  if (!hasRealOverlay) {
+    manualRouteModeInput.checked = false;
+  }
+
+  updateManualRouteModeState();
+}
+
+function updateManualRouteModeState() {
+  const enabled = manualRouteModeInput.checked && currentOverlayResult?.type === "geojson";
+
+  manualRouteModeInput.disabled = isManualRouteRequestInFlight || currentOverlayResult?.type !== "geojson";
+  map.getContainer().classList.toggle("is-route-picking", enabled && !isManualRouteRequestInFlight);
+  map.getContainer().classList.toggle("is-fetching-route", isManualRouteRequestInFlight);
+
+  if (isManualRouteRequestInFlight) {
+    return;
+  }
+
+  if (enabled) {
+    setStatus("Click the map to add routes from the current starting point.");
+  }
 }
 
 function drawGeoJsonBands(geojson) {
@@ -1314,6 +1411,19 @@ function getSegmentBandMinutes(start, end, bandFeatures) {
   return band ? getIsochroneMinutes(band) : null;
 }
 
+function getBandMinutesAtCoordinate(coordinate) {
+  const bandFeatures = currentOverlayResult?.geojson
+    ? createBandedIsochroneFeatures(currentOverlayResult.geojson.features || [])
+    : [];
+  const band = bandFeatures.find((feature) => {
+    return getGeometryPolygons(feature.geometry).some((polygon) => {
+      return pointInGeoPolygon(coordinate, polygon);
+    });
+  });
+
+  return band ? getIsochroneMinutes(band) : null;
+}
+
 function createRouteSegmentFeature(coordinates, minutes) {
   return {
     minutes,
@@ -1401,6 +1511,15 @@ function getCoordinateDistanceMeters(first, second) {
 
 function getRouteDurationSeconds(route) {
   return route?.feature?.properties?.summary?.duration || 0;
+}
+
+function getDurationBandMinutes(durationSeconds) {
+  const durationMinutes = durationSeconds / 60;
+  const bands = (currentOverlayResult?.requestedMinutes || currentOverlayResult?.minutes || getSelectedTimeBands())
+    .slice()
+    .sort((a, b) => a - b);
+
+  return bands.find((minutes) => durationMinutes <= minutes) || bands[bands.length - 1] || 60;
 }
 
 function styleIsochroneGeoJson(geojson) {
@@ -1662,10 +1781,13 @@ function describeOverlayResult(result, mode, traffic) {
     return `Showing demo ${mode} bands. Use Get real data to call OpenRouteService.`;
   }
 
+  const manualRouteText = result.manualRouteCount
+    ? ` plus ${result.manualRouteCount} picked ${result.manualRouteCount === 1 ? "route" : "routes"}`
+    : "";
   const routeText = result.routeSummary
-    ? ` and ${result.routeSummary.succeeded}/${result.routeSummary.attempted} sample routes`
+    ? ` and ${result.routeSummary.succeeded}/${result.routeSummary.attempted} sample routes${manualRouteText}`
     : result.routes?.length
-      ? ` and ${result.routes.length} sample routes`
+      ? ` and ${result.routes.length} routes`
       : "";
   const failureText = result.routeSummary?.failed
     ? ` ${result.routeSummary.failed} route requests failed or were rate-limited.`

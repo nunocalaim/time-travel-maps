@@ -758,3 +758,23 @@ Decision:
 
 Tried:
 - Removed the Leaflet circle marker drawn at each sampled route destination.
+
+## 2026-07-01 - Manual route picking mode
+
+Participants:
+- Human: Nuno
+- AI: Codex
+
+Goal:
+- Let the user add specific example routes by clicking destinations on the map.
+
+Decisions:
+- Add a mode toggle under overlay tools so ordinary map clicks still behave normally.
+- Use the current origin marker as the route start.
+- Append picked routes to the current overlay so saving the overlay also saves the manually added routes.
+- Color clicked routes by the clicked isochrone band when possible, otherwise by returned route duration.
+
+Tried:
+- Added a "Click map to add routes" checkbox.
+- Added a map click handler that calls OpenRouteService directions and redraws the route layer.
+- Added cursor feedback while route picking is active or fetching.

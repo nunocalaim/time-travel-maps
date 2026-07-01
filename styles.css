@@ -506,6 +506,18 @@ fieldset label:has(input:disabled) {
   min-height: 100vh;
 }
 
+#map.is-route-picking,
+#map.is-route-picking .leaflet-grab,
+#map.is-route-picking .leaflet-interactive {
+  cursor: crosshair;
+}
+
+#map.is-fetching-route,
+#map.is-fetching-route .leaflet-grab,
+#map.is-fetching-route .leaflet-interactive {
+  cursor: wait;
+}
+
 .map-attribution {
   position: absolute;
   right: 8px;

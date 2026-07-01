@@ -64,6 +64,8 @@ To try real isochrones, create an OpenRouteService API key, paste it into the pa
 
 Turn on **Also fetch sample routes** before fetching real isochrones to sample random destinations inside the bands and draw OpenRouteService routes to them. The sampler keeps a small minimum per band, then gives larger bands more samples by approximate area. This is intentionally API-call-heavy and capped for the prototype.
 
+After a real overlay is visible, turn on **Click map to add routes** to manually request and append a route from the current starting point to any clicked map location.
+
 For a persistent local key, copy `config.local.example.js` to `config.local.js` and add your key there. `config.local.js` is ignored by Git.
 
 Because this is currently a static browser app, pasting a key into the page stores it only in the browser session. The app cannot write that key back into `config.local.js` by itself.
