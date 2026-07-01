@@ -621,3 +621,23 @@ Tried:
 
 Next:
 - Consider adding a cancellable route-fetch workflow if route sampling becomes slow enough to need interruption.
+
+## 2026-07-01 - Route sampling distribution tweak
+
+Participants:
+- Human: Nuno
+- AI: Codex
+
+Goal:
+- Make sample routes more visible and ensure far travel-time bands are represented.
+
+Decisions:
+- Use explicit per-band route sample counts instead of allowing near bands to consume the entire route budget.
+- Increase route stroke weight and endpoint marker size for the proof-of-concept view.
+
+Tried:
+- Raised the overall sample-route cap while assigning each band its own sample count.
+- Made route lines and destination markers thicker.
+
+Next:
+- Test whether the new per-band allocation produces routes in the 30, 45, and 60 minute bands.

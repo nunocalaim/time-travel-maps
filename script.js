@@ -69,6 +69,17 @@ const ZOOM_CLOSER_DELTA = Math.log2(1.45);
 const EXPORT_MAX_PAGE_WIDTH = 1056;
 const EXPORT_MAX_PAGE_HEIGHT = 816;
 const FETCH_REAL_DATA_LABEL = "Get real data";
+const MAX_SAMPLE_ROUTES = 72;
+const ROUTE_SAMPLE_COUNTS = {
+  1: 2,
+  5: 5,
+  10: 8,
+  15: 8,
+  20: 10,
+  30: 10,
+  45: 10,
+  60: 10,
+};
 
 const mapStyles = {
   voyager: {
@@ -606,38 +617,21 @@ function sampleRouteDestinations(geojson) {
   const bandedFeatures = createBandedIsochroneFeatures(geojson.features || [])
     .sort((a, b) => getIsochroneMinutes(a) - getIsochroneMinutes(b));
   const destinations = [];
-  const maxRoutes = 36;
 
   for (const feature of bandedFeatures) {
     const minutes = getIsochroneMinutes(feature);
-    const count = Math.min(getRouteSampleCount(minutes), maxRoutes - destinations.length);
+    const count = getRouteSampleCount(minutes);
 
     destinations.push(...samplePointsInFeature(feature, count).map((coordinates) => {
       return { minutes, coordinates };
     }));
-
-    if (destinations.length >= maxRoutes) {
-      break;
-    }
   }
 
-  return destinations;
+  return destinations.slice(0, MAX_SAMPLE_ROUTES);
 }
 
 function getRouteSampleCount(minutes) {
-  if (minutes <= 5) {
-    return 5;
-  }
-
-  if (minutes <= 10) {
-    return 10;
-  }
-
-  if (minutes <= 20) {
-    return 15;
-  }
-
-  return 6;
+  return ROUTE_SAMPLE_COUNTS[minutes] || 6;
 }
 
 function samplePointsInFeature(feature, count) {
@@ -1076,8 +1070,8 @@ function drawSampleRoutes(routes) {
       L.geoJSON(route.feature, {
         style: {
           color,
-          opacity: 0.82,
-          weight: 7,
+          opacity: 0.88,
+          weight: 10,
           lineCap: "round",
           lineJoin: "round",
         },
@@ -1085,12 +1079,12 @@ function drawSampleRoutes(routes) {
 
       if (route.destination) {
         L.circleMarker([route.destination[1], route.destination[0]], {
-          radius: 7,
+          radius: 9,
           color: "#ffffff",
           fillColor: color,
           fillOpacity: 1,
           opacity: 1,
-          weight: 3,
+          weight: 4,
         }).addTo(routeLayer);
       }
     });
