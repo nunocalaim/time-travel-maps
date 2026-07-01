@@ -1057,15 +1057,28 @@ function drawSampleRoutes(routes) {
     .slice()
     .sort((a, b) => getRouteDurationSeconds(b) - getRouteDurationSeconds(a))
     .forEach((route) => {
+      const color = getBandColor(route.bandMinutes);
+
       L.geoJSON(route.feature, {
         style: {
-          color: getBandColor(route.bandMinutes),
-          opacity: 0.72,
-          weight: 3,
+          color,
+          opacity: 0.82,
+          weight: 7,
           lineCap: "round",
           lineJoin: "round",
         },
       }).addTo(routeLayer);
+
+      if (route.destination) {
+        L.circleMarker([route.destination[1], route.destination[0]], {
+          radius: 7,
+          color: "#ffffff",
+          fillColor: color,
+          fillOpacity: 1,
+          opacity: 1,
+          weight: 3,
+        }).addTo(routeLayer);
+      }
     });
 }
 
