@@ -669,3 +669,31 @@ Open Questions:
 
 Next:
 - Compare route coloring on shared highways against the destination-band coloring on the previous branch.
+
+## 2026-07-01 - Route color smoothing modes
+
+Participants:
+- Human: Nuno
+- AI: Codex
+
+Goal:
+- Reduce noisy route color flickers near isochrone boundaries while keeping fast-corridor behavior plausible.
+
+Decisions:
+- Add route coloring modes instead of baking in one interpretation.
+- Make "Smoothed band color" the default.
+- Keep raw Turf band coloring, outbound monotone coloring, and destination coloring available for comparison.
+- Smooth short isolated color runs rather than enforcing strict monotonic color progression.
+
+Tried:
+- Added a Route coloring selector to overlay tools.
+- Saved route coloring mode with map composition settings.
+- Implemented short-run smoothing for one-off flickers.
+- Added an outbound monotone mode as a stylized alternative.
+
+Open Questions:
+- What minimum distance should define a "short" flicker at different map scales?
+- Should smoothing eventually consider turn angle/road continuity in addition to segment length?
+
+Next:
+- Compare smoothed versus raw coloring on highways near band boundaries.

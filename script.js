@@ -117,6 +117,7 @@ const overlayMetadata = document.querySelector("#overlay-metadata");
 const overlayTools = document.querySelector("#overlay-tools");
 const mapStyleSelect = document.querySelector("#map-style");
 const overlayPaletteSelect = document.querySelector("#overlay-palette");
+const routeColoringSelect = document.querySelector("#route-coloring");
 const maxTimeSelect = document.querySelector("#max-time");
 const overlayOpacityInput = document.querySelector("#overlay-opacity");
 const exportQualitySelect = document.querySelector("#export-quality");
@@ -227,6 +228,14 @@ overlayPaletteSelect.addEventListener("change", () => {
   }
 
   setStatus(`Overlay palette changed to ${getCurrentPalette().label}.`);
+});
+
+routeColoringSelect.addEventListener("change", () => {
+  if (currentOverlayResult) {
+    renderTravelTimeOverlay(currentOverlayResult);
+  }
+
+  setStatus(`Route coloring changed to ${routeColoringSelect.selectedOptions[0].textContent}.`);
 });
 
 prepareExportButton.addEventListener("click", () => {
@@ -950,6 +959,7 @@ function getCurrentCompositionSettings() {
   return {
     mapStyle: mapStyleSelect.value,
     palette: overlayPaletteSelect.value,
+    routeColoring: routeColoringSelect.value,
     opacity: overlayOpacityInput.value,
     exportQuality: exportQualitySelect.value,
     title: exportTitleInput.value,
@@ -977,6 +987,8 @@ function applyCompositionSettings(composition = {}) {
     overlayPaletteSelect.value = composition.palette;
     updateLegendPalette();
   }
+
+  routeColoringSelect.value = composition.routeColoring || "smoothed";
 
   if (composition.opacity) {
     overlayOpacityInput.value = composition.opacity;
@@ -1096,7 +1108,9 @@ function drawSampleRoutes(routes) {
 }
 
 function getColorCodedRouteSegments(route, bandFeatures) {
-  if (!window.turf || !bandFeatures.length) {
+  const mode = routeColoringSelect.value;
+
+  if (mode === "destination" || !window.turf || !bandFeatures.length) {
     return [{
       minutes: route.bandMinutes,
       feature: route.feature,
@@ -1132,10 +1146,20 @@ function getColorCodedRouteSegments(route, bandFeatures) {
     }
   });
 
-  return segments.length ? segments : [{
+  const routeSegments = segments.length ? segments : [{
     minutes: route.bandMinutes,
     feature: route.feature,
   }];
+
+  if (mode === "monotone") {
+    return applyMonotoneRouteColoring(routeSegments);
+  }
+
+  if (mode === "smoothed") {
+    return smoothRouteColorSegments(routeSegments);
+  }
+
+  return routeSegments;
 }
 
 function getRouteCoordinateLines(geometry) {
@@ -1179,6 +1203,77 @@ function createRouteSegmentFeature(coordinates, minutes) {
       },
     },
   };
+}
+
+function smoothRouteColorSegments(segments) {
+  const minimumRunMeters = 650;
+  const flattened = segments.map((segment) => ({
+    ...segment,
+    lengthMeters: getRouteSegmentLengthMeters(segment),
+  }));
+
+  for (let index = 1; index < flattened.length - 1; index += 1) {
+    const previous = flattened[index - 1];
+    const current = flattened[index];
+    const next = flattened[index + 1];
+
+    if (previous.minutes !== next.minutes || current.minutes === previous.minutes) {
+      continue;
+    }
+
+    if (current.lengthMeters <= minimumRunMeters) {
+      current.minutes = previous.minutes;
+      current.feature.properties.minutes = previous.minutes;
+    }
+  }
+
+  return mergeAdjacentRouteSegments(flattened);
+}
+
+function applyMonotoneRouteColoring(segments) {
+  let maxMinutes = 0;
+
+  return mergeAdjacentRouteSegments(segments.map((segment) => {
+    maxMinutes = Math.max(maxMinutes, segment.minutes);
+    segment.minutes = maxMinutes;
+    segment.feature.properties.minutes = maxMinutes;
+
+    return segment;
+  }));
+}
+
+function mergeAdjacentRouteSegments(segments) {
+  return segments.reduce((merged, segment) => {
+    const previous = merged[merged.length - 1];
+
+    if (!previous || previous.minutes !== segment.minutes) {
+      merged.push(segment);
+      return merged;
+    }
+
+    previous.feature.geometry.coordinates.push(...segment.feature.geometry.coordinates.slice(1));
+    return merged;
+  }, []);
+}
+
+function getRouteSegmentLengthMeters(segment) {
+  const coordinates = segment.feature.geometry.coordinates;
+
+  return coordinates.slice(1).reduce((total, coordinate, index) => {
+    return total + getCoordinateDistanceMeters(coordinates[index], coordinate);
+  }, 0);
+}
+
+function getCoordinateDistanceMeters(first, second) {
+  const earthRadiusMeters = 6371000;
+  const lat1 = degreesToRadians(first[1]);
+  const lat2 = degreesToRadians(second[1]);
+  const deltaLat = degreesToRadians(second[1] - first[1]);
+  const deltaLng = degreesToRadians(second[0] - first[0]);
+  const a = Math.sin(deltaLat / 2) ** 2
+    + Math.cos(lat1) * Math.cos(lat2) * Math.sin(deltaLng / 2) ** 2;
+
+  return 2 * earthRadiusMeters * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
 function getRouteDurationSeconds(route) {
