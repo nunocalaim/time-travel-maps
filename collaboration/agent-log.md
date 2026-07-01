@@ -600,3 +600,24 @@ Open Questions:
 
 Next:
 - Test route sampling with a real ORS key and watch rate-limit behavior.
+
+## 2026-07-01 - Route fetch progress and saved route clarity
+
+Participants:
+- Human: Nuno
+- AI: Codex
+
+Goal:
+- Make long route-enhanced data requests feel active and clarify that saved overlays keep route data.
+
+Decisions:
+- Rename the real-data action from "Fetch real isochrones" to "Get real data" because it may now fetch routes too.
+- Disable the real-data button while requests are running and show progress text.
+- Include saved sample-route counts in overlay metadata and save status.
+
+Tried:
+- Added fetch button loading labels for isochrone-only and isochrone-plus-route requests.
+- Updated status copy around API keys, changed origins, demo fallback, and saved overlays.
+
+Next:
+- Consider adding a cancellable route-fetch workflow if route sampling becomes slow enough to need interruption.

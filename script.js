@@ -68,6 +68,7 @@ const ORS_MAX_DRIVING_MINUTES = 60;
 const ZOOM_CLOSER_DELTA = Math.log2(1.45);
 const EXPORT_MAX_PAGE_WIDTH = 1056;
 const EXPORT_MAX_PAGE_HEIGHT = 816;
+const FETCH_REAL_DATA_LABEL = "Get real data";
 
 const mapStyles = {
   voyager: {
@@ -290,7 +291,7 @@ orsApiKeyInput.addEventListener("change", async () => {
 
   if (key) {
     sessionStorage.setItem(ORS_KEY_STORAGE, key);
-    setStatus("API key saved for this browser session. Click Fetch real isochrones when ready.");
+    setStatus("API key saved for this browser session. Click Get real data when ready.");
   } else {
     sessionStorage.removeItem(ORS_KEY_STORAGE);
     setStatus("API key cleared from this browser session.");
@@ -303,9 +304,15 @@ fetchRealDataButton.addEventListener("click", async () => {
     return;
   }
 
-  useRealData = true;
-  const center = originMarker.getLatLng();
-  await refreshTravelTimeOverlay(center.lat, center.lng);
+  setRealDataFetchState(true);
+
+  try {
+    useRealData = true;
+    const center = originMarker.getLatLng();
+    await refreshTravelTimeOverlay(center.lat, center.lng);
+  } finally {
+    setRealDataFetchState(false);
+  }
 });
 
 saveOverlayButton.addEventListener("click", () => {
@@ -389,7 +396,7 @@ async function setOrigin(lat, lng, label, options = {}) {
     routeLayer.clearLayers();
     updateOverlayToolsVisibility();
     exitExportMode();
-    setStatus("Starting point set. Click Fetch real isochrones to create a real overlay.");
+    setStatus("Starting point set. Click Get real data to create a real overlay.");
     return;
   }
 
@@ -440,7 +447,13 @@ async function refreshTravelTimeOverlay(lat, lng) {
   const provider = getTravelTimeProvider();
   const requestedMinutes = getSelectedTimeBands();
 
-  setStatus(`Loading ${provider} ${mode} bands...`);
+  if (provider === "openrouteservice") {
+    setStatus(includeSampleRoutesInput.checked
+      ? "Requesting real isochrones, then sample routes. This can take a little while..."
+      : "Requesting real isochrones...");
+  } else {
+    setStatus(`Loading ${provider} ${mode} bands...`);
+  }
 
   try {
     const minutes = getProviderTimeBands(provider, mode, requestedMinutes);
@@ -474,7 +487,7 @@ async function refreshCreationSettingsPreview() {
   const center = originMarker.getLatLng();
 
   if (currentOverlayResult && currentOverlayResult.type === "geojson") {
-    setStatus("Creation settings changed. Click Fetch real isochrones to replace the current overlay.");
+    setStatus("Creation settings changed. Click Get real data to replace the current overlay.");
     return;
   }
 
@@ -767,7 +780,7 @@ function refreshSavedOverlayList() {
 
 function saveCurrentOverlay() {
   if (!currentOverlayResult || currentOverlayResult.type !== "geojson") {
-    setStatus("Fetch real isochrones before saving an overlay.");
+    setStatus("Get real data before saving an overlay.");
     return;
   }
 
@@ -801,7 +814,7 @@ function saveCurrentOverlay() {
   refreshSavedOverlayList();
   savedOverlaysSelect.value = overlay.id;
   refreshOverlayMetadata();
-  setStatus(`Saved overlay: ${name}.`);
+  setStatus(`Saved overlay: ${name}${currentOverlayResult.routes?.length ? ` with ${currentOverlayResult.routes.length} sample routes` : ""}.`);
 }
 
 function loadSelectedOverlay() {
@@ -922,8 +935,9 @@ function formatOverlayMetadata(overlay) {
   const generated = overlay.createdAt ? new Date(overlay.createdAt).toLocaleString() : "Unknown date";
   const provider = overlay.result?.provider || "unknown";
   const bands = getOverlayTimeBands(overlay).join(", ");
+  const routes = overlay.result?.routes?.length || 0;
 
-  return `Origin: ${overlay.origin?.label || "Unknown"} | Mode: ${overlay.mode || "unknown"} | Bands: ${bands} min | Provider: ${provider} | Generated: ${generated}`;
+  return `Origin: ${overlay.origin?.label || "Unknown"} | Mode: ${overlay.mode || "unknown"} | Bands: ${bands} min | Provider: ${provider} | Routes: ${routes} | Generated: ${generated}`;
 }
 
 function getOverlayTimeBands(overlay) {
@@ -1342,19 +1356,21 @@ function setBaseMapStyle(styleId, options = {}) {
 
 function describeOverlayResult(result, mode, traffic) {
   if (result.provider === "demo") {
-    return `Showing demo ${mode} bands. Use Fetch real isochrones to call OpenRouteService.`;
+    return `Showing demo ${mode} bands. Use Get real data to call OpenRouteService.`;
   }
+
+  const routeText = result.routes?.length ? ` and ${result.routes.length} sample routes` : "";
 
   const requestedMax = Math.max(...(result.requestedMinutes || []));
   if (mode === "drive" && requestedMax > ORS_MAX_DRIVING_MINUTES) {
-    return `Showing OpenRouteService drive isochrones up to 60 minutes. Hosted ORS currently caps driving isochrones at 1 hour.`;
+    return `Showing OpenRouteService drive isochrones${routeText} up to 60 minutes. Hosted ORS currently caps driving isochrones at 1 hour.`;
   }
 
   if (traffic !== "traffic-free") {
-    return `Showing OpenRouteService ${mode} isochrones. Traffic mode is not applied by this provider yet.`;
+    return `Showing OpenRouteService ${mode} isochrones${routeText}. Traffic mode is not applied by this provider yet.`;
   }
 
-  return `Showing OpenRouteService ${mode} isochrones.`;
+  return `Showing OpenRouteService ${mode} isochrones${routeText}.`;
 }
 
 function invalidateRealData() {
@@ -1363,6 +1379,15 @@ function invalidateRealData() {
 
 function setStatus(message) {
   statusEl.textContent = message;
+}
+
+function setRealDataFetchState(isFetching) {
+  fetchRealDataButton.disabled = isFetching;
+  fetchRealDataButton.textContent = isFetching
+    ? includeSampleRoutesInput.checked
+      ? "Getting isochrones and routes..."
+      : "Getting real data..."
+    : FETCH_REAL_DATA_LABEL;
 }
 
 function getOverlayOpacity() {
