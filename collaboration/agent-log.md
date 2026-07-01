@@ -641,3 +641,31 @@ Tried:
 
 Next:
 - Test whether the new per-band allocation produces routes in the 30, 45, and 60 minute bands.
+
+## 2026-07-01 - Polygon-library route coloring experiment
+
+Participants:
+- Human: Nuno
+- AI: Codex
+
+Goal:
+- Test whether a polygon library can color route segments by the isochrone band each road segment passes through.
+
+Decisions:
+- Branch the experiment to `polygon-library`.
+- Use Turf.js in the browser for point-in-polygon checks.
+- Keep the previous destination-band route color as a fallback if Turf is unavailable.
+- Start with midpoint-based segment classification before attempting exact line/polygon splitting.
+
+Tried:
+- Added Turf.js from a CDN.
+- Split route geometries into consecutive line segments.
+- Classified each segment by checking its midpoint against the non-overlapping isochrone band polygons.
+- Merged adjacent route segments that share the same band color.
+
+Open Questions:
+- Is midpoint classification good enough visually, or do we need exact boundary splitting?
+- Should Turf be vendored or installed through a build step before publishing?
+
+Next:
+- Compare route coloring on shared highways against the destination-band coloring on the previous branch.

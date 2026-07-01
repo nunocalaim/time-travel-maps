@@ -1060,24 +1060,29 @@ function drawGeoJsonBands(geojson) {
 
 function drawSampleRoutes(routes) {
   routeLayer.clearLayers();
+  const bandFeatures = currentOverlayResult?.geojson
+    ? createBandedIsochroneFeatures(currentOverlayResult.geojson.features || [])
+    : [];
 
   routes
     .slice()
     .sort((a, b) => getRouteDurationSeconds(b) - getRouteDurationSeconds(a))
     .forEach((route) => {
-      const color = getBandColor(route.bandMinutes);
-
-      L.geoJSON(route.feature, {
-        style: {
-          color,
-          opacity: 0.88,
-          weight: 10,
-          lineCap: "round",
-          lineJoin: "round",
-        },
-      }).addTo(routeLayer);
+      getColorCodedRouteSegments(route, bandFeatures).forEach((segment) => {
+        L.geoJSON(segment.feature, {
+          style: {
+            color: getBandColor(segment.minutes),
+            opacity: 0.88,
+            weight: 10,
+            lineCap: "round",
+            lineJoin: "round",
+          },
+        }).addTo(routeLayer);
+      });
 
       if (route.destination) {
+        const color = getBandColor(route.bandMinutes);
+
         L.circleMarker([route.destination[1], route.destination[0]], {
           radius: 9,
           color: "#ffffff",
@@ -1088,6 +1093,92 @@ function drawSampleRoutes(routes) {
         }).addTo(routeLayer);
       }
     });
+}
+
+function getColorCodedRouteSegments(route, bandFeatures) {
+  if (!window.turf || !bandFeatures.length) {
+    return [{
+      minutes: route.bandMinutes,
+      feature: route.feature,
+    }];
+  }
+
+  const segments = [];
+
+  getRouteCoordinateLines(route.feature.geometry).forEach((line) => {
+    let activeMinutes = null;
+    let activeCoordinates = [];
+
+    for (let index = 0; index < line.length - 1; index += 1) {
+      const start = line[index];
+      const end = line[index + 1];
+      const minutes = getSegmentBandMinutes(start, end, bandFeatures) || route.bandMinutes;
+
+      if (activeMinutes === minutes) {
+        activeCoordinates.push(end);
+        continue;
+      }
+
+      if (activeCoordinates.length > 1) {
+        segments.push(createRouteSegmentFeature(activeCoordinates, activeMinutes));
+      }
+
+      activeMinutes = minutes;
+      activeCoordinates = [start, end];
+    }
+
+    if (activeCoordinates.length > 1) {
+      segments.push(createRouteSegmentFeature(activeCoordinates, activeMinutes));
+    }
+  });
+
+  return segments.length ? segments : [{
+    minutes: route.bandMinutes,
+    feature: route.feature,
+  }];
+}
+
+function getRouteCoordinateLines(geometry) {
+  if (!geometry) {
+    return [];
+  }
+
+  if (geometry.type === "LineString") {
+    return [geometry.coordinates];
+  }
+
+  if (geometry.type === "MultiLineString") {
+    return geometry.coordinates;
+  }
+
+  return [];
+}
+
+function getSegmentBandMinutes(start, end, bandFeatures) {
+  const midpoint = [
+    (start[0] + end[0]) / 2,
+    (start[1] + end[1]) / 2,
+  ];
+  const point = turf.point(midpoint);
+  const band = bandFeatures.find((feature) => {
+    return turf.booleanPointInPolygon(point, feature);
+  });
+
+  return band ? getIsochroneMinutes(band) : null;
+}
+
+function createRouteSegmentFeature(coordinates, minutes) {
+  return {
+    minutes,
+    feature: {
+      type: "Feature",
+      properties: { minutes },
+      geometry: {
+        type: "LineString",
+        coordinates,
+      },
+    },
+  };
 }
 
 function getRouteDurationSeconds(route) {
