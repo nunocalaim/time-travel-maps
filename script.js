@@ -4,15 +4,59 @@ const DEFAULT_PLACE = {
   lng: -8.4103,
 };
 
-const bandColors = {
-  1: "#0b6e4f",
-  5: "#1a936f",
-  10: "#2fbf71",
-  15: "#8bd346",
-  20: "#d6d94f",
-  30: "#f5c542",
-  45: "#f28f3b",
-  60: "#d94f45",
+const overlayPalettes = {
+  classic: {
+    label: "Classic",
+    colors: {
+      1: "#0b6e4f",
+      5: "#1a936f",
+      10: "#2fbf71",
+      15: "#8bd346",
+      20: "#d6d94f",
+      30: "#f5c542",
+      45: "#f28f3b",
+      60: "#d94f45",
+    },
+  },
+  warm: {
+    label: "Warm",
+    colors: {
+      1: "#7f1d1d",
+      5: "#b91c1c",
+      10: "#dc2626",
+      15: "#f97316",
+      20: "#f59e0b",
+      30: "#facc15",
+      45: "#fde68a",
+      60: "#fff7ed",
+    },
+  },
+  bluegreen: {
+    label: "Blue-green",
+    colors: {
+      1: "#083344",
+      5: "#155e75",
+      10: "#0e7490",
+      15: "#0891b2",
+      20: "#14b8a6",
+      30: "#2dd4bf",
+      45: "#99f6e4",
+      60: "#ecfeff",
+    },
+  },
+  grayscale: {
+    label: "Grayscale",
+    colors: {
+      1: "#111827",
+      5: "#374151",
+      10: "#4b5563",
+      15: "#6b7280",
+      20: "#9ca3af",
+      30: "#d1d5db",
+      45: "#e5e7eb",
+      60: "#f9fafb",
+    },
+  },
 };
 
 const ORS_ENDPOINT = "https://api.openrouteservice.org/v2/isochrones";
@@ -52,12 +96,23 @@ const saveOverlayButton = document.querySelector("#save-overlay");
 const clearApiKeyButton = document.querySelector("#clear-api-key");
 const savedOverlaysSelect = document.querySelector("#saved-overlays");
 const loadOverlayButton = document.querySelector("#load-overlay");
+const renameOverlayButton = document.querySelector("#rename-overlay");
+const duplicateOverlayButton = document.querySelector("#duplicate-overlay");
 const deleteOverlayButton = document.querySelector("#delete-overlay");
+const overlayMetadata = document.querySelector("#overlay-metadata");
 const overlayTools = document.querySelector("#overlay-tools");
 const mapStyleSelect = document.querySelector("#map-style");
+const overlayPaletteSelect = document.querySelector("#overlay-palette");
 const maxTimeSelect = document.querySelector("#max-time");
 const overlayOpacityInput = document.querySelector("#overlay-opacity");
+const exportQualitySelect = document.querySelector("#export-quality");
+const exportTitleInput = document.querySelector("#export-title");
+const exportSubtitleInput = document.querySelector("#export-subtitle");
 const includeLegendInput = document.querySelector("#include-legend");
+const includeMetadataInput = document.querySelector("#include-metadata");
+const includeOriginLabelInput = document.querySelector("#include-origin-label");
+const includeBandLabelsInput = document.querySelector("#include-band-labels");
+const exportAnnotationInput = document.querySelector("#export-annotation");
 const prepareExportButton = document.querySelector("#prepare-export");
 const exportSelectionButton = document.querySelector("#export-selection");
 const resetExportFrameButton = document.querySelector("#reset-export-frame");
@@ -90,8 +145,10 @@ let currentOrigin = initialPlace;
 let pendingPrintView = null;
 let pendingPrintCrop = null;
 let dragState = null;
+let savedExportFrameBounds = null;
 
 orsApiKeyInput.value = getStoredOpenRouteServiceApiKey();
+updateLegendPalette();
 refreshSavedOverlayList();
 if (initialSavedOverlay) {
   loadOverlay(initialSavedOverlay, { announce: false });
@@ -145,6 +202,16 @@ document.querySelectorAll('input[name="traffic-mode"]').forEach((control) => {
 
 mapStyleSelect.addEventListener("change", () => {
   setBaseMapStyle(mapStyleSelect.value);
+});
+
+overlayPaletteSelect.addEventListener("change", () => {
+  updateLegendPalette();
+
+  if (currentOverlayResult) {
+    renderTravelTimeOverlay(currentOverlayResult);
+  }
+
+  setStatus(`Overlay palette changed to ${getCurrentPalette().label}.`);
 });
 
 prepareExportButton.addEventListener("click", () => {
@@ -246,8 +313,20 @@ loadOverlayButton.addEventListener("click", () => {
   loadSelectedOverlay();
 });
 
+renameOverlayButton.addEventListener("click", () => {
+  renameSelectedOverlay();
+});
+
+duplicateOverlayButton.addEventListener("click", () => {
+  duplicateSelectedOverlay();
+});
+
 deleteOverlayButton.addEventListener("click", () => {
   deleteSelectedOverlay();
+});
+
+savedOverlaysSelect.addEventListener("change", () => {
+  refreshOverlayMetadata();
 });
 
 clearApiKeyButton.addEventListener("click", async () => {
@@ -514,6 +593,7 @@ function refreshSavedOverlayList() {
     option.value = "";
     option.textContent = "No saved overlays";
     savedOverlaysSelect.append(option);
+    refreshOverlayMetadata();
     return;
   }
 
@@ -523,6 +603,8 @@ function refreshSavedOverlayList() {
     option.textContent = overlay.name;
     savedOverlaysSelect.append(option);
   });
+
+  refreshOverlayMetadata();
 }
 
 function saveCurrentOverlay() {
@@ -552,6 +634,7 @@ function saveCurrentOverlay() {
     mode,
     traffic: document.querySelector('input[name="traffic-mode"]:checked').value,
     maxMinutes,
+    composition: getCurrentCompositionSettings(),
     result: currentOverlayResult,
   };
 
@@ -559,6 +642,7 @@ function saveCurrentOverlay() {
   setSavedOverlays(overlays.slice(0, 20));
   refreshSavedOverlayList();
   savedOverlaysSelect.value = overlay.id;
+  refreshOverlayMetadata();
   setStatus(`Saved overlay: ${name}.`);
 }
 
@@ -588,6 +672,7 @@ function loadOverlay(overlay, options = {}) {
   if (trafficControl) {
     trafficControl.checked = true;
   }
+  applyCompositionSettings(overlay.composition);
   saveLastOrigin(overlay.origin);
   originMarker.setLatLng([overlay.origin.lat, overlay.origin.lng]).bindPopup(overlay.origin.label).openPopup();
   renderTravelTimeOverlay(overlay.result);
@@ -598,6 +683,7 @@ function loadOverlay(overlay, options = {}) {
     fitMapToOverlay();
   }
   savedOverlaysSelect.value = overlay.id;
+  refreshOverlayMetadata();
 
   if (options.announce === false) {
     setStatus(`Loaded latest saved overlay: ${overlay.name}.`);
@@ -605,6 +691,54 @@ function loadOverlay(overlay, options = {}) {
   }
 
   setStatus(`Loaded saved overlay: ${overlay.name}.`);
+}
+
+function renameSelectedOverlay() {
+  const overlays = getSavedOverlays();
+  const overlay = overlays.find((item) => item.id === savedOverlaysSelect.value);
+
+  if (!overlay) {
+    setStatus("Choose a saved overlay first.");
+    return;
+  }
+
+  const name = window.prompt("Rename overlay", overlay.name);
+
+  if (!name) {
+    return;
+  }
+
+  overlay.name = name;
+  setSavedOverlays(overlays);
+  refreshSavedOverlayList();
+  savedOverlaysSelect.value = overlay.id;
+  refreshOverlayMetadata();
+  setStatus(`Renamed overlay: ${name}.`);
+}
+
+function duplicateSelectedOverlay() {
+  const overlays = getSavedOverlays();
+  const overlay = overlays.find((item) => item.id === savedOverlaysSelect.value);
+
+  if (!overlay) {
+    setStatus("Choose a saved overlay first.");
+    return;
+  }
+
+  const copy = {
+    ...overlay,
+    id: `overlay-${Date.now()}`,
+    name: `${overlay.name} copy`,
+    createdAt: new Date().toISOString(),
+    composition: overlay.composition ? { ...overlay.composition } : null,
+  };
+
+  overlays.unshift(copy);
+  setSavedOverlays(overlays.slice(0, 20));
+  refreshSavedOverlayList();
+  savedOverlaysSelect.value = copy.id;
+  refreshOverlayMetadata();
+  setStatus(`Duplicated overlay: ${copy.name}.`);
 }
 
 function deleteSelectedOverlay() {
@@ -618,6 +752,99 @@ function deleteSelectedOverlay() {
   setSavedOverlays(getSavedOverlays().filter((overlay) => overlay.id !== selectedId));
   refreshSavedOverlayList();
   setStatus("Saved overlay deleted.");
+}
+
+function refreshOverlayMetadata() {
+  const overlay = getSavedOverlays().find((item) => item.id === savedOverlaysSelect.value);
+
+  overlayMetadata.textContent = overlay ? formatOverlayMetadata(overlay) : "No saved overlay selected.";
+}
+
+function formatOverlayMetadata(overlay) {
+  const generated = overlay.createdAt ? new Date(overlay.createdAt).toLocaleString() : "Unknown date";
+  const provider = overlay.result?.provider || "unknown";
+  const bands = getOverlayTimeBands(overlay).join(", ");
+
+  return `Origin: ${overlay.origin?.label || "Unknown"} | Mode: ${overlay.mode || "unknown"} | Bands: ${bands} min | Provider: ${provider} | Generated: ${generated}`;
+}
+
+function getOverlayTimeBands(overlay) {
+  if (overlay.result?.requestedMinutes?.length) {
+    return overlay.result.requestedMinutes;
+  }
+
+  if (overlay.result?.minutes?.length) {
+    return overlay.result.minutes;
+  }
+
+  return getSelectedTimeBands();
+}
+
+function getCurrentCompositionSettings() {
+  return {
+    mapStyle: mapStyleSelect.value,
+    palette: overlayPaletteSelect.value,
+    opacity: overlayOpacityInput.value,
+    exportQuality: exportQualitySelect.value,
+    title: exportTitleInput.value,
+    subtitle: exportSubtitleInput.value,
+    annotation: exportAnnotationInput.value,
+    includeLegend: includeLegendInput.checked,
+    includeMetadata: includeMetadataInput.checked,
+    includeOriginLabel: includeOriginLabelInput.checked,
+    includeBandLabels: includeBandLabelsInput.checked,
+    exportFrame: isExportMode ? serializeBounds(exportFrame.getBounds()) : null,
+  };
+}
+
+function applyCompositionSettings(composition = {}) {
+  if (!composition) {
+    return;
+  }
+
+  if (composition.mapStyle && mapStyles[composition.mapStyle]) {
+    mapStyleSelect.value = composition.mapStyle;
+    setBaseMapStyle(composition.mapStyle, { silent: true });
+  }
+
+  if (composition.palette && overlayPalettes[composition.palette]) {
+    overlayPaletteSelect.value = composition.palette;
+    updateLegendPalette();
+  }
+
+  if (composition.opacity) {
+    overlayOpacityInput.value = composition.opacity;
+  }
+
+  exportQualitySelect.value = composition.exportQuality || "1";
+  exportTitleInput.value = composition.title || "";
+  exportSubtitleInput.value = composition.subtitle || "";
+  exportAnnotationInput.value = composition.annotation || "";
+  includeLegendInput.checked = Boolean(composition.includeLegend);
+  includeMetadataInput.checked = Boolean(composition.includeMetadata);
+  includeOriginLabelInput.checked = Boolean(composition.includeOriginLabel);
+  includeBandLabelsInput.checked = Boolean(composition.includeBandLabels);
+
+  if (composition.exportFrame) {
+    savedExportFrameBounds = deserializeBounds(composition.exportFrame);
+    exportFrame.setBounds(savedExportFrameBounds);
+  }
+}
+
+function serializeBounds(bounds) {
+  return {
+    north: bounds.getNorth(),
+    east: bounds.getEast(),
+    south: bounds.getSouth(),
+    west: bounds.getWest(),
+  };
+}
+
+function deserializeBounds(bounds) {
+  return L.latLngBounds(
+    [bounds.south, bounds.west],
+    [bounds.north, bounds.east]
+  );
 }
 
 function renderTravelTimeOverlay(result) {
@@ -646,10 +873,12 @@ function drawGeoJsonBands(geojson) {
   L.geoJSON({ ...geojson, features: sortedFeatures }, {
     style: (feature) => {
       const properties = feature.properties || {};
+      const minutes = properties.minutes || getIsochroneMinutes(feature);
+      const color = getBandColor(minutes);
 
       return {
-        color: properties.color || properties.fillColor || "#1f7a8c",
-        fillColor: properties.fillColor || properties.fill || "#1f7a8c",
+        color,
+        fillColor: color,
         fillOpacity: getOverlayOpacity(),
         opacity: properties.opacity || 0.85,
         weight: 2,
@@ -809,6 +1038,8 @@ function createBaseLayer(style) {
 }
 
 function getBandColor(minutes) {
+  const bandColors = getCurrentPalette().colors;
+
   if (minutes <= 1) {
     return bandColors[1];
   }
@@ -838,6 +1069,18 @@ function getBandColor(minutes) {
   }
 
   return bandColors[60];
+}
+
+function getCurrentPalette() {
+  return overlayPalettes[overlayPaletteSelect.value] || overlayPalettes.classic;
+}
+
+function updateLegendPalette() {
+  Object.entries(getCurrentPalette().colors).forEach(([minutes, color]) => {
+    document.querySelectorAll(`.band-${minutes}`).forEach((swatch) => {
+      swatch.style.background = color;
+    });
+  });
 }
 
 function getSelectedTimeBands() {
@@ -885,13 +1128,16 @@ function getStoredOpenRouteServiceApiKey() {
   return localConfig.openRouteServiceApiKey || sessionStorage.getItem(ORS_KEY_STORAGE) || "";
 }
 
-function setBaseMapStyle(styleId) {
+function setBaseMapStyle(styleId, options = {}) {
   const style = mapStyles[styleId] || mapStyles.voyager;
 
   map.removeLayer(baseLayer);
   baseLayer = createBaseLayer(style).addTo(map);
   baseLayer.bringToBack();
-  setStatus(`Map style changed to ${style.label}.`);
+
+  if (!options.silent) {
+    setStatus(`Map style changed to ${style.label}.`);
+  }
 }
 
 function describeOverlayResult(result, mode, traffic) {
@@ -989,7 +1235,14 @@ function enterExportMode() {
     }
   });
 
-  resetExportFrame();
+  if (savedExportFrameBounds) {
+    exportFrame.setBounds(savedExportFrameBounds);
+    savedExportFrameBounds = null;
+  } else {
+    resetExportFrame();
+  }
+
+  updateExportHandles();
   updateExportControls();
   setStatus("Adjust the export frame, then choose Export SVG.");
 }
@@ -1119,18 +1372,24 @@ async function exportSelectedFrameToSvg() {
 }
 
 async function createSelectedAreaSvg(crop) {
+  const quality = Number(exportQualitySelect.value) || 1;
   const width = Math.round(crop.width);
   const height = Math.round(crop.height);
+  const outputWidth = Math.round(width * quality);
+  const outputHeight = Math.round(height * quality);
   const content = [
     `<rect width="${width}" height="${height}" fill="#ffffff"></rect>`,
     await createSvgTileLayer(crop),
     createSvgOverlayLayer(crop),
+    createSvgExportLabels(crop, width, height),
+    includeLegendInput.checked ? createSvgLegend(width, height) : "",
+    includeMetadataInput.checked ? createSvgMetadata(width, height) : "",
     createSvgAttribution(width, height),
   ].filter(Boolean).join("\n");
 
   return [
     '<?xml version="1.0" encoding="UTF-8"?>',
-    `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">`,
+    `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${outputWidth}" height="${outputHeight}" viewBox="0 0 ${width} ${height}">`,
     content,
     "</svg>",
   ].join("\n");
@@ -1186,6 +1445,133 @@ function createSvgOverlayLayer(crop) {
 
 function createSvgAttribution(width, height) {
   return `<text x="${Math.max(8, width - 8)}" y="${Math.max(14, height - 8)}" text-anchor="end" font-family="Arial, sans-serif" font-size="11" fill="#5b6875">© openrouteservice.org by HeiGIT | Map data © OpenStreetMap contributors</text>`;
+}
+
+function createSvgExportLabels(crop, width, height) {
+  const labels = [
+    createSvgTitleBlock(),
+    exportAnnotationInput.value ? createSvgText(exportAnnotationInput.value, 18, getTitleBlockHeight() + 22, { size: 13, weight: 600 }) : "",
+    includeOriginLabelInput.checked ? createSvgOriginLabel(crop) : "",
+    includeBandLabelsInput.checked ? createSvgBandLabels(crop) : "",
+  ].filter(Boolean);
+
+  if (!labels.length) {
+    return "";
+  }
+
+  return `<g id="map-labels" font-family="Arial, sans-serif">${labels.join("\n")}</g>`;
+}
+
+function createSvgTitleBlock() {
+  const title = exportTitleInput.value.trim();
+  const subtitle = exportSubtitleInput.value.trim();
+
+  if (!title && !subtitle) {
+    return "";
+  }
+
+  return [
+    title ? createSvgText(title, 18, 30, { size: 21, weight: 700 }) : "",
+    subtitle ? createSvgText(subtitle, 18, title ? 52 : 30, { size: 14, weight: 600, fill: "#374151" }) : "",
+  ].filter(Boolean).join("\n");
+}
+
+function getTitleBlockHeight() {
+  if (exportTitleInput.value.trim() && exportSubtitleInput.value.trim()) {
+    return 52;
+  }
+
+  return exportTitleInput.value.trim() || exportSubtitleInput.value.trim() ? 30 : 0;
+}
+
+function createSvgOriginLabel(crop) {
+  const point = map.latLngToContainerPoint([currentOrigin.lat, currentOrigin.lng]);
+  const x = point.x - crop.left + 12;
+  const y = point.y - crop.top - 12;
+
+  if (!pointInsideCrop(x, y, crop)) {
+    return "";
+  }
+
+  return createSvgText(currentOrigin.label || "Origin", x, y, { size: 13, weight: 700, fill: "#111827" });
+}
+
+function createSvgBandLabels(crop) {
+  if (!currentOverlayResult || currentOverlayResult.type !== "geojson") {
+    return "";
+  }
+
+  return (currentOverlayResult.geojson.features || []).map((feature) => {
+    const bounds = L.geoJSON(feature).getBounds();
+
+    if (!bounds.isValid()) {
+      return "";
+    }
+
+    const point = map.latLngToContainerPoint(bounds.getCenter());
+    const x = point.x - crop.left;
+    const y = point.y - crop.top;
+
+    if (!pointInsideCrop(x, y, crop)) {
+      return "";
+    }
+
+    return createSvgText(`${getIsochroneMinutes(feature)} min`, x, y, { size: 12, weight: 700, anchor: "middle" });
+  }).filter(Boolean).join("\n");
+}
+
+function createSvgLegend(width, height) {
+  const entries = getCurrentTimeBands();
+  const x = Math.max(16, width - 112);
+  const y = 18;
+  const rows = entries.map((minutes, index) => {
+    const rowY = y + index * 17;
+    const color = getBandColor(minutes);
+
+    return `<rect x="${x}" y="${rowY}" width="11" height="11" rx="2" fill="${color}" stroke="#ffffff" stroke-width="0.5"></rect><text x="${x + 17}" y="${rowY + 10}" font-family="Arial, sans-serif" font-size="11" font-weight="700" fill="#374151">${minutes} min</text>`;
+  }).join("\n");
+
+  return `<g id="legend">${rows}</g>`;
+}
+
+function createSvgMetadata(width, height) {
+  const lines = getCurrentMetadataLines();
+  const x = 18;
+  const startY = Math.max(24, height - 78);
+
+  return `<g id="metadata" font-family="Arial, sans-serif">${lines.map((line, index) => {
+    return createSvgText(line, x, startY + index * 15, { size: 11, weight: 600, fill: "#4b5563" });
+  }).join("\n")}</g>`;
+}
+
+function getCurrentMetadataLines() {
+  const mode = document.querySelector('input[name="travel-mode"]:checked').value;
+  const traffic = document.querySelector('input[name="traffic-mode"]:checked').value;
+  const provider = currentOverlayResult?.provider || "unknown";
+  const bands = getCurrentTimeBands();
+
+  return [
+    `Origin: ${currentOrigin.label || "Unknown"}`,
+    `Mode: ${mode}; traffic: ${traffic}; provider: ${provider}`,
+    `Bands: ${bands.join(", ")} min; generated: ${new Date().toLocaleString()}`,
+  ];
+}
+
+function getCurrentTimeBands() {
+  return currentOverlayResult?.requestedMinutes || currentOverlayResult?.minutes || getSelectedTimeBands();
+}
+
+function createSvgText(text, x, y, options = {}) {
+  const anchor = options.anchor || "start";
+  const fill = options.fill || "#111827";
+  const size = options.size || 12;
+  const weight = options.weight || 500;
+
+  return `<text x="${roundSvgNumber(x)}" y="${roundSvgNumber(y)}" text-anchor="${anchor}" font-size="${size}" font-weight="${weight}" fill="${fill}">${escapeXml(text)}</text>`;
+}
+
+function pointInsideCrop(x, y, crop) {
+  return x >= 0 && x <= crop.width && y >= 0 && y <= crop.height;
 }
 
 async function getEmbeddedImageSource(source) {

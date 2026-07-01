@@ -543,3 +543,32 @@ Open Questions:
 
 Next:
 - Test with existing saved overlays and a newly saved named overlay.
+
+## 2026-07-01 - SVG composition tools
+
+Participants:
+- Human: Nuno
+- AI: Codex
+
+Goal:
+- Turn SVG export into the main gift-map composition workflow.
+
+Decisions:
+- Keep SVG export as the primary export path.
+- Add export quality choices for screen, 2x, and 4x output dimensions.
+- Add optional export title, subtitle, annotation, legend, metadata, origin label, and time-band labels.
+- Add overlay palette presets: classic, warm, blue-green, and grayscale.
+- Treat saved overlays more like saved map compositions by storing style/export settings with them.
+
+Tried:
+- Added overlay rename and duplicate actions.
+- Added a saved-overlay metadata panel.
+- Saved and restored composition settings such as map style, palette, opacity, labels, metadata, and export frame.
+- Updated SVG export to include optional title/metadata/labels/legend.
+
+Open Questions:
+- Should export quality eventually refetch higher-zoom or retina tiles instead of only scaling SVG output dimensions?
+- Should custom annotations become draggable map labels rather than a single export note?
+
+Next:
+- Test SVG exports in Illustrator with titles, metadata, labels, and each palette.

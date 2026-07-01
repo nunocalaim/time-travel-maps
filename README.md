@@ -43,12 +43,15 @@ It currently uses:
 - Optional OpenRouteService isochrones when an API key is pasted into the local page.
 - Right-click-to-set origin refinement on the map.
 - SVG export through a selectable map area.
+- SVG export quality options for screen, 2x, and 4x output dimensions.
+- Optional SVG title, subtitle, annotation, legend, metadata, origin label, and time-band labels.
 - Explicit OpenRouteService/OpenStreetMap attribution in the UI and print layout.
 - Draggable export frame for choosing the export area.
 - Freely resizable export frame handles.
 - Overlay transparency control.
+- Overlay palette presets for classic, warm, blue-green, and grayscale maps.
 - Last starting location persistence.
-- Local save/load for fetched OpenRouteService overlays.
+- Local save/load, rename, and duplicate for fetched OpenRouteService overlays.
 
 If tiles appear scrambled or misaligned, the Leaflet stylesheet is probably blocked by the browser or CDN. The app includes local fallback layout rules in `styles.css`, so refresh the page after pulling the latest files.
 

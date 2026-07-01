@@ -299,7 +299,9 @@ legend {
   gap: 8px;
 }
 
-input[type="search"] {
+input[type="search"],
+input[type="text"],
+input[type="password"] {
   min-width: 0;
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -402,6 +404,16 @@ fieldset label:has(input:disabled) {
 .api-controls h2 {
   margin: 0;
   font-size: 1rem;
+}
+
+.metadata-panel {
+  padding: 10px;
+  border-radius: 8px;
+  color: var(--muted);
+  background: #eef3f6;
+  font-size: 0.82rem;
+  font-weight: 650;
+  line-height: 1.35;
 }
 
 .overlay-tools {

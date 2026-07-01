@@ -88,7 +88,10 @@
             <option value="">No saved overlays</option>
           </select>
           <button id="load-overlay" type="button">Load overlay</button>
+          <button id="rename-overlay" class="secondary-button" type="button">Rename overlay</button>
+          <button id="duplicate-overlay" class="secondary-button" type="button">Duplicate overlay</button>
           <button id="delete-overlay" class="secondary-button" type="button">Delete overlay</button>
+          <div id="overlay-metadata" class="metadata-panel">No saved overlay selected.</div>
         </fieldset>
 
         <div id="overlay-tools" class="overlay-tools is-hidden">
@@ -98,6 +101,16 @@
               <option value="voyager" selected>Detailed</option>
               <option value="light">Light print</option>
               <option value="dark">Dark</option>
+            </select>
+          </label>
+
+          <label class="select-control" for="overlay-palette">
+            Overlay palette
+            <select id="overlay-palette" name="overlay-palette">
+              <option value="classic" selected>Classic</option>
+              <option value="warm">Warm</option>
+              <option value="bluegreen">Blue-green</option>
+              <option value="grayscale">Grayscale</option>
             </select>
           </label>
 
@@ -113,9 +126,48 @@
             >
           </label>
 
+          <label class="select-control" for="export-quality">
+            SVG export quality
+            <select id="export-quality" name="export-quality">
+              <option value="1" selected>Screen size</option>
+              <option value="2">2x</option>
+              <option value="4">4x</option>
+            </select>
+          </label>
+
+          <label class="select-control" for="export-title">
+            Export title
+            <input id="export-title" name="export-title" type="text" placeholder="Reachable from this location">
+          </label>
+
+          <label class="select-control" for="export-subtitle">
+            Export subtitle
+            <input id="export-subtitle" name="export-subtitle" type="text" placeholder="Optional subtitle">
+          </label>
+
           <label class="checkbox-control">
             <input id="include-legend" name="include-legend" type="checkbox">
             Include legend in export
+          </label>
+
+          <label class="checkbox-control">
+            <input id="include-metadata" name="include-metadata" type="checkbox">
+            Include metadata in export
+          </label>
+
+          <label class="checkbox-control">
+            <input id="include-origin-label" name="include-origin-label" type="checkbox">
+            Label origin
+          </label>
+
+          <label class="checkbox-control">
+            <input id="include-band-labels" name="include-band-labels" type="checkbox">
+            Label time bands
+          </label>
+
+          <label class="select-control" for="export-annotation">
+            Annotation
+            <input id="export-annotation" name="export-annotation" type="text" placeholder="Optional note">
           </label>
 
           <button id="prepare-export" type="button">Prepare export</button>
