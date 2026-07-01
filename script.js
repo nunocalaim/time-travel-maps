@@ -552,43 +552,60 @@ async function getOpenRouteServiceOverlay(request) {
 
   const geojson = await response.json();
   const styledGeojson = styleIsochroneGeoJson(geojson);
-  const routes = request.includeRoutes
+  const routeResult = request.includeRoutes
     ? await getOpenRouteServiceSampleRoutes({
       apiKey,
       profile,
       origin: [request.lng, request.lat],
       geojson: styledGeojson,
     })
-    : [];
+    : { routes: [], summary: null };
 
   return {
     provider: "openrouteservice",
     type: "geojson",
     requestedMinutes: request.requestedMinutes,
     geojson: styledGeojson,
-    routes,
+    routes: routeResult.routes,
+    routeSummary: routeResult.summary,
   };
 }
 
 async function getOpenRouteServiceSampleRoutes({ apiKey, profile, origin, geojson }) {
   const destinations = sampleRouteDestinations(geojson);
   const routes = [];
+  const failuresByBand = {};
+  const attemptsByBand = {};
 
   for (let index = 0; index < destinations.length; index += 1) {
     const destination = destinations[index];
 
-    setStatus(`Fetching sample route ${index + 1} of ${destinations.length}...`);
-    routes.push(await getOpenRouteServiceRoute({
+    attemptsByBand[destination.minutes] = (attemptsByBand[destination.minutes] || 0) + 1;
+    setStatus(`Fetching sample route ${index + 1} of ${destinations.length} (${destination.minutes} min band)...`);
+    const route = await getOpenRouteServiceRoute({
       apiKey,
       profile,
       origin,
       destination,
-    }));
+    });
+
+    if (route) {
+      routes.push(route);
+    } else {
+      failuresByBand[destination.minutes] = (failuresByBand[destination.minutes] || 0) + 1;
+    }
   }
 
-  return routes
-    .filter(Boolean)
-    .sort((a, b) => getRouteDurationSeconds(b) - getRouteDurationSeconds(a));
+  return {
+    routes: routes.sort((a, b) => getRouteDurationSeconds(b) - getRouteDurationSeconds(a)),
+    summary: {
+      attempted: destinations.length,
+      succeeded: routes.length,
+      failed: destinations.length - routes.length,
+      attemptsByBand,
+      failuresByBand,
+    },
+  };
 }
 
 async function getOpenRouteServiceRoute({ apiKey, profile, origin, destination }) {
@@ -625,18 +642,42 @@ async function getOpenRouteServiceRoute({ apiKey, profile, origin, destination }
 function sampleRouteDestinations(geojson) {
   const bandedFeatures = createBandedIsochroneFeatures(geojson.features || [])
     .sort((a, b) => getIsochroneMinutes(a) - getIsochroneMinutes(b));
-  const destinations = [];
+  const destinationsByBand = [];
 
   for (const feature of bandedFeatures) {
     const minutes = getIsochroneMinutes(feature);
     const count = getRouteSampleCount(minutes);
-
-    destinations.push(...samplePointsInFeature(feature, count).map((coordinates) => {
+    const destinations = samplePointsInFeature(feature, count).map((coordinates) => {
       return { minutes, coordinates };
-    }));
+    });
+
+    if (destinations.length) {
+      destinationsByBand.push({ minutes, destinations });
+    }
   }
 
-  return destinations.slice(0, MAX_SAMPLE_ROUTES);
+  return interleaveDestinationsByBand(destinationsByBand)
+    .slice(0, MAX_SAMPLE_ROUTES);
+}
+
+function interleaveDestinationsByBand(destinationsByBand) {
+  const groups = destinationsByBand
+    .slice()
+    .sort((a, b) => b.minutes - a.minutes)
+    .map((group) => ({ ...group, destinations: [...group.destinations] }));
+  const interleaved = [];
+
+  while (groups.some((group) => group.destinations.length)) {
+    groups.forEach((group) => {
+      const destination = group.destinations.shift();
+
+      if (destination) {
+        interleaved.push(destination);
+      }
+    });
+  }
+
+  return interleaved;
 }
 
 function getRouteSampleCount(minutes) {
@@ -939,8 +980,11 @@ function formatOverlayMetadata(overlay) {
   const provider = overlay.result?.provider || "unknown";
   const bands = getOverlayTimeBands(overlay).join(", ");
   const routes = overlay.result?.routes?.length || 0;
+  const routeSummary = overlay.result?.routeSummary
+    ? ` (${overlay.result.routeSummary.succeeded}/${overlay.result.routeSummary.attempted} succeeded)`
+    : "";
 
-  return `Origin: ${overlay.origin?.label || "Unknown"} | Mode: ${overlay.mode || "unknown"} | Bands: ${bands} min | Provider: ${provider} | Routes: ${routes} | Generated: ${generated}`;
+  return `Origin: ${overlay.origin?.label || "Unknown"} | Mode: ${overlay.mode || "unknown"} | Bands: ${bands} min | Provider: ${provider} | Routes: ${routes}${routeSummary} | Generated: ${generated}`;
 }
 
 function getOverlayTimeBands(overlay) {
@@ -1539,18 +1583,25 @@ function describeOverlayResult(result, mode, traffic) {
     return `Showing demo ${mode} bands. Use Get real data to call OpenRouteService.`;
   }
 
-  const routeText = result.routes?.length ? ` and ${result.routes.length} sample routes` : "";
+  const routeText = result.routeSummary
+    ? ` and ${result.routeSummary.succeeded}/${result.routeSummary.attempted} sample routes`
+    : result.routes?.length
+      ? ` and ${result.routes.length} sample routes`
+      : "";
+  const failureText = result.routeSummary?.failed
+    ? ` ${result.routeSummary.failed} route requests failed or were rate-limited.`
+    : "";
 
   const requestedMax = Math.max(...(result.requestedMinutes || []));
   if (mode === "drive" && requestedMax > ORS_MAX_DRIVING_MINUTES) {
-    return `Showing OpenRouteService drive isochrones${routeText} up to 60 minutes. Hosted ORS currently caps driving isochrones at 1 hour.`;
+    return `Showing OpenRouteService drive isochrones${routeText} up to 60 minutes. Hosted ORS currently caps driving isochrones at 1 hour.${failureText}`;
   }
 
   if (traffic !== "traffic-free") {
-    return `Showing OpenRouteService ${mode} isochrones${routeText}. Traffic mode is not applied by this provider yet.`;
+    return `Showing OpenRouteService ${mode} isochrones${routeText}. Traffic mode is not applied by this provider yet.${failureText}`;
   }
 
-  return `Showing OpenRouteService ${mode} isochrones${routeText}.`;
+  return `Showing OpenRouteService ${mode} isochrones${routeText}.${failureText}`;
 }
 
 function invalidateRealData() {

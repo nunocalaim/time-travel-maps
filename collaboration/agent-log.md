@@ -697,3 +697,25 @@ Open Questions:
 
 Next:
 - Compare smoothed versus raw coloring on highways near band boundaries.
+
+## 2026-07-01 - Far-band route sampling diagnostics
+
+Participants:
+- Human: Nuno
+- AI: Codex
+
+Goal:
+- Investigate why sample routes in farther bands were disappearing again.
+
+Decisions:
+- Treat API failures or rate limits as plausible because route calls were still being made near-to-far.
+- Interleave route requests by band from farthest to nearest so farther bands are attempted early.
+- Store route request summaries with overlays so failures are visible.
+
+Tried:
+- Added attempted/succeeded/failed route counts.
+- Added per-band attempt/failure summaries internally.
+- Changed route destination ordering to round-robin across bands from farthest to nearest.
+
+Next:
+- Test whether far-band routes appear even when some route requests fail.
