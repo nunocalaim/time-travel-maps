@@ -327,14 +327,66 @@ input[type="password"] {
 }
 
 .helper-link {
+  width: fit-content;
+  border: 0;
+  padding: 0;
   color: var(--accent-strong);
+  background: transparent;
   font-size: 0.82rem;
   font-weight: 700;
   text-decoration: none;
 }
 
 .helper-link:hover {
+  color: var(--accent-strong);
+  background: transparent;
   text-decoration: underline;
+}
+
+.api-help-dialog {
+  width: min(560px, calc(100vw - 32px));
+  border: 0;
+  border-radius: 8px;
+  padding: 24px;
+  color: var(--ink);
+  box-shadow: 0 24px 70px rgb(0 0 0 / 0.28);
+}
+
+.api-help-dialog::backdrop {
+  background: rgb(15 23 42 / 0.45);
+}
+
+.api-help-dialog h2 {
+  margin: 0 34px 10px 0;
+  font-size: 1.25rem;
+}
+
+.api-help-dialog p,
+.api-help-dialog li {
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.api-help-dialog ul {
+  display: grid;
+  gap: 7px;
+  margin: 0 0 16px;
+  padding-left: 20px;
+}
+
+.api-help-dialog a {
+  color: var(--accent-strong);
+  font-weight: 800;
+}
+
+.dialog-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border-radius: 999px;
 }
 
 .is-hidden {

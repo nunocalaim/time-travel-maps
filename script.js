@@ -149,6 +149,8 @@ const cancelExportButton = document.querySelector("#cancel-export");
 const useLocationButton = document.querySelector("#use-location");
 const statusEl = document.querySelector("#status");
 const printPageStyle = document.querySelector("#print-page-style");
+const apiHelpDialog = document.querySelector("#api-help-dialog");
+const apiHelpContent = document.querySelector("#api-help-content");
 const localConfig = window.ISOCHRONES_CONFIG || {};
 const initialPlace = getInitialPlace();
 const initialSavedOverlay = getLatestSavedOverlay();
@@ -264,6 +266,18 @@ routeThicknessInput.addEventListener("input", () => {
 
 routeOpacityInput.addEventListener("input", () => {
   updateRouteAppearance("Path transparency", `${routeOpacityInput.value}%`);
+});
+
+document.querySelectorAll("[data-api-help]").forEach((button) => {
+  button.addEventListener("click", () => {
+    showApiHelpDialog(button.dataset.apiHelp);
+  });
+});
+
+apiHelpDialog.addEventListener("click", (event) => {
+  if (event.target === apiHelpDialog) {
+    apiHelpDialog.close();
+  }
 });
 
 prepareExportButton.addEventListener("click", () => {
@@ -1763,6 +1777,67 @@ function getMapTilerApiKey() {
 
 function getStoredMapTilerApiKey() {
   return localConfig.mapTilerApiKey || sessionStorage.getItem(MAPTILER_KEY_STORAGE) || "";
+}
+
+function showApiHelpDialog(apiName) {
+  const content = getApiHelpContent(apiName);
+
+  if (!content) {
+    return;
+  }
+
+  apiHelpContent.innerHTML = content;
+
+  if (typeof apiHelpDialog.showModal === "function") {
+    apiHelpDialog.showModal();
+    return;
+  }
+
+  window.open(getApiRegistrationUrl(apiName), "_blank", "noopener,noreferrer");
+}
+
+function getApiHelpContent(apiName) {
+  if (apiName === "openrouteservice") {
+    return `
+      <h2>OpenRouteService API</h2>
+      <p>OpenRouteService is the routing service this app uses for real travel-time data.</p>
+      <ul>
+        <li>It creates the travel-time bands by calculating areas reachable from the starting point within each time limit.</li>
+        <li>It can also calculate route paths from the starting point to sampled or clicked destinations.</li>
+        <li>This is the required API key for real overlays and route examples.</li>
+        <li>A free account/API key is available for testing and light use. Usage limits apply.</li>
+      </ul>
+      <p><a href="${getApiRegistrationUrl(apiName)}" target="_blank" rel="noreferrer">Register for a free OpenRouteService key</a></p>
+    `;
+  }
+
+  if (apiName === "maptiler") {
+    return `
+      <h2>MapTiler API</h2>
+      <p>MapTiler provides optional basemap styles. This app uses it only for prettier background maps.</p>
+      <ul>
+        <li>It does not calculate travel times or routes.</li>
+        <li>It unlocks the MapTiler map styles in the Map style dropdown.</li>
+        <li>The current integration uses raster map tiles, so SVG export can still embed visible map tiles when allowed by the browser/provider.</li>
+        <li>MapTiler has a free plan suitable for testing, personal, and non-commercial use. Usage limits apply.</li>
+      </ul>
+      <p><a href="${getApiRegistrationUrl(apiName)}" target="_blank" rel="noreferrer">Register for a free MapTiler key</a></p>
+    `;
+  }
+
+  return "";
+}
+
+function getApiRegistrationUrl(apiName) {
+  if (apiName === "openrouteservice") {
+    return "https://openrouteservice.org/dev/#/signup";
+  }
+
+  if (apiName === "maptiler") {
+    return "https://cloud.maptiler.com/account/keys/";
+  }
+
+  return "";
 }
 
 function canUseMapStyle(style) {

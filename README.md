@@ -38,6 +38,7 @@ It currently uses:
 - Nominatim reverse geocoding for readable saved-overlay names.
 - Empty map state until real or saved travel-time data is loaded.
 - A map-style selector for CARTO basemaps and optional MapTiler presets.
+- In-app API key help dialogs for OpenRouteService and MapTiler setup.
 - Optional OpenRouteService isochrones when an API key is pasted into the local page.
 - Optional sample-route fetching from random points inside isochrone bands as a proof of concept.
 - Separate display toggles for travel-time bands and sample routes.

@@ -914,3 +914,21 @@ Decisions:
 Tried:
 - Deleted the demo overlay/ring drawing path.
 - Updated status and README copy to describe the empty initial state.
+
+## 2026-07-02 - API help dialogs
+
+Participants:
+- Human: Nuno
+- AI: Codex
+
+Goal:
+- Help testers understand why the app asks for API keys before sending them to external signup pages.
+
+Decisions:
+- Replace plain API helper links with in-app dialogs.
+- Explain what OpenRouteService does: real isochrone bands and route paths.
+- Explain what MapTiler does: optional basemap styling.
+- Say free access is available, with usage limits.
+
+Tried:
+- Added a native dialog with API-specific explanatory text and registration links.

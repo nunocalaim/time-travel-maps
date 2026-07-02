@@ -70,7 +70,7 @@
               placeholder="Required for real travel-time data"
               autocomplete="off"
             >
-            <a class="helper-link" href="https://openrouteservice.org/dev/#/signup" target="_blank" rel="noreferrer">How to get an OpenRouteService key</a>
+            <button class="helper-link" type="button" data-api-help="openrouteservice">What does this API do?</button>
             <label for="maptiler-api-key">MapTiler API key (optional)</label>
             <input
               id="maptiler-api-key"
@@ -79,7 +79,7 @@
               placeholder="Optional, for MapTiler map styles"
               autocomplete="off"
             >
-            <a class="helper-link" href="https://cloud.maptiler.com/account/keys/" target="_blank" rel="noreferrer">How to get a MapTiler key</a>
+            <button class="helper-link" type="button" data-api-help="maptiler">What does this API do?</button>
           </div>
 
           <div class="radio-group">
@@ -269,6 +269,13 @@
         </div>
       </section>
     </main>
+
+    <dialog id="api-help-dialog" class="api-help-dialog">
+      <form method="dialog">
+        <button class="dialog-close" value="close" aria-label="Close">×</button>
+      </form>
+      <div id="api-help-content"></div>
+    </dialog>
 
     <script
       src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
