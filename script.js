@@ -64,6 +64,7 @@ const ORS_DIRECTIONS_ENDPOINT = "https://api.openrouteservice.org/v2/directions"
 const ORS_KEY_STORAGE = "time-to-x:ors-api-key";
 const LAST_ORIGIN_STORAGE = "isochrones:last-origin";
 const SAVED_OVERLAYS_STORAGE = "isochrones:saved-overlays";
+const MAPTILER_KEY_HELP_URL = "https://cloud.maptiler.com/account/keys/";
 const ORS_MAX_DRIVING_MINUTES = 60;
 const ZOOM_CLOSER_DELTA = Math.log2(1.45);
 const EXPORT_MAX_PAGE_WIDTH = 1056;
@@ -90,6 +91,22 @@ const mapStyles = {
     url: "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
     attribution:
       '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+  },
+  maptilerDatavizLight: {
+    label: "MapTiler Dataviz light",
+    mapTilerStyleId: "dataviz-light",
+  },
+  maptilerBackdrop: {
+    label: "MapTiler Backdrop",
+    mapTilerStyleId: "backdrop",
+  },
+  maptilerBasic: {
+    label: "MapTiler Basic",
+    mapTilerStyleId: "basic-v2",
+  },
+  maptilerBright: {
+    label: "MapTiler Bright",
+    mapTilerStyleId: "bright-v2",
   },
 };
 
@@ -1680,11 +1697,27 @@ function radiansToDegrees(radians) {
 }
 
 function createBaseLayer(style) {
-  return L.tileLayer(style.url, {
+  return L.tileLayer(getMapStyleTileUrl(style), {
     maxZoom: 19,
-    attribution: style.attribution,
+    attribution: getMapStyleAttribution(style),
     crossOrigin: "anonymous",
   });
+}
+
+function getMapStyleTileUrl(style) {
+  if (!style.mapTilerStyleId) {
+    return style.url;
+  }
+
+  return `https://api.maptiler.com/maps/${style.mapTilerStyleId}/256/{z}/{x}/{y}.png?key=${encodeURIComponent(getMapTilerApiKey())}`;
+}
+
+function getMapStyleAttribution(style) {
+  if (!style.mapTilerStyleId) {
+    return style.attribution;
+  }
+
+  return '&copy; <a href="https://www.maptiler.com/copyright/">MapTiler</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
 }
 
 function getBandColor(minutes) {
@@ -1778,15 +1811,32 @@ function getStoredOpenRouteServiceApiKey() {
   return localConfig.openRouteServiceApiKey || sessionStorage.getItem(ORS_KEY_STORAGE) || "";
 }
 
+function getMapTilerApiKey() {
+  return localConfig.mapTilerApiKey || "";
+}
+
+function canUseMapStyle(style) {
+  return !style.mapTilerStyleId || Boolean(getMapTilerApiKey());
+}
+
 function setBaseMapStyle(styleId, options = {}) {
-  const style = mapStyles[styleId] || mapStyles.voyager;
+  let style = mapStyles[styleId] || mapStyles.voyager;
+  let missingMapTilerKey = false;
+
+  if (!canUseMapStyle(style)) {
+    missingMapTilerKey = true;
+    mapStyleSelect.value = "light";
+    style = mapStyles.light;
+  }
 
   map.removeLayer(baseLayer);
   baseLayer = createBaseLayer(style).addTo(map);
   baseLayer.bringToBack();
 
   if (!options.silent) {
-    setStatus(`Map style changed to ${style.label}.`);
+    setStatus(missingMapTilerKey
+      ? `Add a MapTiler key to config.local.js to use that style. Free keys are available at ${MAPTILER_KEY_HELP_URL}`
+      : `Map style changed to ${style.label}.`);
   }
 }
 

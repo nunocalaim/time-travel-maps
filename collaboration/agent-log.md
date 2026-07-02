@@ -833,3 +833,27 @@ Decisions:
 Tried:
 - Replaced the real-overlay SVG export clone with explicit SVG path generation from map coordinates.
 - Preserved current overlay opacity, route thickness, route transparency, and route coloring in the grouped export.
+
+## 2026-07-02 - Optional MapTiler basemap presets
+
+Participants:
+- Human: Nuno
+- AI: Codex
+
+Goal:
+- Explore free-tier map customization options and start moving toward more purpose-built basemap styles.
+
+Decisions:
+- Keep CARTO raster basemaps as the no-key default.
+- Add optional MapTiler raster presets because MapTiler has a free cloud tier for testing, personal, and non-commercial use.
+- Store the MapTiler key in ignored `config.local.js`, not in tracked files.
+- Use raster tile presets first so the existing Leaflet rendering and SVG export pipeline keep working.
+
+Tried:
+- Added `mapTilerApiKey` to `config.local.example.js`.
+- Added MapTiler Dataviz light, Backdrop, Basic, and Bright entries to the map-style dropdown.
+- Added graceful fallback to the CARTO light style when a MapTiler preset is chosen without a local key.
+
+Next:
+- Evaluate which MapTiler styles best support semi-transparent isochrone overlays.
+- Later, consider MapLibre style JSON import for exact layer-level map customization.

@@ -39,7 +39,7 @@ It currently uses:
 - Nominatim reverse geocoding for readable saved-overlay names.
 - Demo travel-time rings only before a real or saved overlay is available.
 - A provider-shaped travel-time boundary in `script.js`, currently set to `demo`.
-- A small map-style selector for detailed, light, and dark base maps.
+- A map-style selector for CARTO basemaps and optional MapTiler presets.
 - Optional OpenRouteService isochrones when an API key is pasted into the local page.
 - Optional sample-route fetching from random points inside isochrone bands as a proof of concept.
 - Turf.js-powered route segment coloring on the `polygon-library` experiment branch.
@@ -68,7 +68,9 @@ Turn on **Also fetch sample routes** before fetching real isochrones to sample r
 
 After a real overlay is visible, turn on **Click map to add routes** to manually request and append a route from the current starting point to any clicked map location.
 
-For a persistent local key, copy `config.local.example.js` to `config.local.js` and add your key there. `config.local.js` is ignored by Git.
+For persistent local keys, copy `config.local.example.js` to `config.local.js` and add your OpenRouteService and optional MapTiler keys there. `config.local.js` is ignored by Git.
+
+MapTiler presets use MapTiler Cloud raster tiles. MapTiler currently offers a free plan for testing, personal, and non-commercial use; add `mapTilerApiKey` in `config.local.js` to enable those styles.
 
 Because this is currently a static browser app, pasting a key into the page stores it only in the browser session. The app cannot write that key back into `config.local.js` by itself.
 
