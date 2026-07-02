@@ -185,7 +185,7 @@ refreshSavedOverlayList();
 if (initialSavedOverlay) {
   loadOverlay(initialSavedOverlay, { announce: false });
 } else {
-  refreshTravelTimeOverlay(initialPlace.lat, initialPlace.lng);
+  setStatus("Set a starting point or click Get real data to load travel-time data.");
 }
 
 toggleSidebarButton.addEventListener("click", () => {
@@ -476,7 +476,7 @@ async function setOrigin(lat, lng, label, options = {}) {
     return;
   }
 
-  await refreshTravelTimeOverlay(lat, lng);
+  setStatus("Starting point set. Click Get real data to load travel-time data.");
 }
 
 async function getReadableLocationName(lat, lng) {
@@ -520,16 +520,12 @@ function createOriginMarker(lat, lng, label) {
 async function refreshTravelTimeOverlay(lat, lng) {
   const mode = document.querySelector('input[name="travel-mode"]:checked').value;
   const traffic = document.querySelector('input[name="traffic-mode"]:checked').value;
-  const provider = getTravelTimeProvider();
+  const provider = "openrouteservice";
   const requestedMinutes = getSelectedTimeBands();
 
-  if (provider === "openrouteservice") {
-    setStatus(includeSampleRoutesInput.checked
-      ? "Requesting real isochrones, then sample routes. This can take a little while..."
-      : "Requesting real isochrones...");
-  } else {
-    setStatus(`Loading ${provider} ${mode} bands...`);
-  }
+  setStatus(includeSampleRoutesInput.checked
+    ? "Requesting real isochrones, then sample routes. This can take a little while..."
+    : "Requesting real isochrones...");
 
   try {
     const minutes = getProviderTimeBands(provider, mode, requestedMinutes);
@@ -552,30 +548,24 @@ async function refreshTravelTimeOverlay(lat, lng) {
     setStatus(describeOverlayResult(result, mode, traffic));
   } catch (error) {
     useRealData = false;
-    currentOverlayResult = getDemoOverlay({ lat, lng, mode, traffic, minutes: requestedMinutes });
-    renderTravelTimeOverlay(currentOverlayResult);
+    currentOverlayResult = null;
+    overlayLayer.clearLayers();
+    routeLayer.clearLayers();
     updateOverlayToolsVisibility();
-    fitMapToOverlay();
-    setStatus(`${error.message} Showing demo bands instead.`);
+    setStatus(`${error.message} No travel-time data was loaded.`);
   }
 }
 
 async function refreshCreationSettingsPreview() {
-  const center = originMarker.getLatLng();
-
   if (currentOverlayResult && currentOverlayResult.type === "geojson") {
     setStatus("Creation settings changed. Click Get real data to replace the current overlay.");
     return;
   }
 
-  await refreshTravelTimeOverlay(center.lat, center.lng);
+  setStatus("Creation settings changed. Click Get real data to load travel-time data.");
 }
 
 async function getTravelTimeOverlay(request) {
-  if (request.provider === "demo") {
-    return getDemoOverlay(request);
-  }
-
   if (request.provider === "openrouteservice") {
     return getOpenRouteServiceOverlay(request);
   }
@@ -963,19 +953,6 @@ function getOpenRouteServiceProfile(mode) {
   return "driving-car";
 }
 
-function getDemoOverlay(request) {
-  return {
-    provider: "demo",
-    type: "concentric-rings",
-    origin: { lat: request.lat, lng: request.lng },
-    mode: request.mode,
-    traffic: request.traffic,
-    minutes: request.minutes,
-    requestedMinutes: request.requestedMinutes || request.minutes,
-    showBands: request.includeBands !== false,
-  };
-}
-
 function getInitialPlace() {
   try {
     const saved = JSON.parse(localStorage.getItem(LAST_ORIGIN_STORAGE));
@@ -1293,11 +1270,6 @@ function deserializeBounds(bounds) {
 }
 
 function renderTravelTimeOverlay(result) {
-  if (result.type === "concentric-rings") {
-    drawDemoBands(result.origin.lat, result.origin.lng, result.mode, result.minutes, result.showBands !== false);
-    return;
-  }
-
   if (result.type === "geojson") {
     drawGeoJsonBands(result.geojson);
     return;
@@ -1664,63 +1636,6 @@ function getIsochroneMinutes(feature) {
   return Math.round(seconds / 60);
 }
 
-function drawDemoBands(lat, lng, mode, minutes = [1, 5, 10, 15, 20, 30, 45, 60], showBands = true) {
-  overlayLayer.clearLayers();
-  routeLayer.clearLayers();
-
-  if (!showBands) {
-    return;
-  }
-
-  const minutesToMeters = mode === "walk" ? 80 : 850;
-  const bands = [...minutes].sort((a, b) => a - b);
-
-  bands.forEach((minutes, index) => {
-    const previousMinutes = bands[index - 1] || 0;
-
-    L.polygon(createDemoRing(lat, lng, previousMinutes * minutesToMeters, minutes * minutesToMeters), {
-      color: getBandColor(minutes),
-      fillColor: getBandColor(minutes),
-      fillOpacity: getOverlayOpacity(),
-      fillRule: "evenodd",
-      opacity: 0.85,
-      weight: 2,
-    }).addTo(overlayLayer);
-  });
-}
-
-function createDemoRing(lat, lng, innerRadiusMeters, outerRadiusMeters) {
-  const outer = createCircleCoordinates(lat, lng, outerRadiusMeters);
-
-  if (!innerRadiusMeters) {
-    return [outer];
-  }
-
-  const inner = createCircleCoordinates(lat, lng, innerRadiusMeters).reverse();
-
-  return [outer, inner];
-}
-
-function createCircleCoordinates(lat, lng, radiusMeters) {
-  const steps = 96;
-  const earthRadiusMeters = 6378137;
-  const latRadians = degreesToRadians(lat);
-  const coordinates = [];
-
-  for (let step = 0; step <= steps; step += 1) {
-    const angle = (step / steps) * Math.PI * 2;
-    const deltaLat = (radiusMeters * Math.sin(angle)) / earthRadiusMeters;
-    const deltaLng = (radiusMeters * Math.cos(angle)) / (earthRadiusMeters * Math.cos(latRadians));
-
-    coordinates.push([
-      lat + radiansToDegrees(deltaLat),
-      lng + radiansToDegrees(deltaLng),
-    ]);
-  }
-
-  return coordinates;
-}
-
 function degreesToRadians(degrees) {
   return degrees * (Math.PI / 180);
 }
@@ -1834,10 +1749,6 @@ function fitMapToOverlay() {
   }, 0);
 }
 
-function getTravelTimeProvider() {
-  return useRealData && getOpenRouteServiceApiKey() ? "openrouteservice" : "demo";
-}
-
 function getOpenRouteServiceApiKey() {
   return orsApiKeyInput.value.trim() || getStoredOpenRouteServiceApiKey();
 }
@@ -1880,10 +1791,6 @@ function setBaseMapStyle(styleId, options = {}) {
 }
 
 function describeOverlayResult(result, mode, traffic) {
-  if (result.provider === "demo") {
-    return `Showing demo ${mode} bands. Use Get real data to call OpenRouteService.`;
-  }
-
   const manualRouteText = result.manualRouteCount
     ? ` plus ${result.manualRouteCount} picked ${result.manualRouteCount === 1 ? "route" : "routes"}`
     : "";

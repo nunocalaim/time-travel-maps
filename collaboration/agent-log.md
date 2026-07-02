@@ -896,3 +896,21 @@ Decision:
 
 Tried:
 - Darkened the far-band colors in warm, blue-green, and grayscale palettes.
+
+## 2026-07-02 - Remove concentric demo rings
+
+Participants:
+- Human: Nuno
+- AI: Codex
+
+Goal:
+- Avoid showing placeholder travel-time geometry to testers.
+
+Decisions:
+- Remove automatic demo-ring rendering on first load.
+- Remove the no-key and failed-request fallback to concentric rings.
+- Keep the map empty until real or saved travel-time data is available.
+
+Tried:
+- Deleted the demo overlay/ring drawing path.
+- Updated status and README copy to describe the empty initial state.

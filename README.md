@@ -20,7 +20,6 @@ Start small:
 - Web page with a location input.
 - Map centered on the chosen location.
 - Driving-time overlay for a few time bands.
-- Static or cached demo data if live travel-time APIs are too slow or expensive during prototyping.
 
 ## Current Prototype
 
@@ -37,8 +36,7 @@ It currently uses:
 - Leaflet for map rendering.
 - CARTO raster map tiles using OpenStreetMap data.
 - Nominatim reverse geocoding for readable saved-overlay names.
-- Demo travel-time rings only before a real or saved overlay is available.
-- A provider-shaped travel-time boundary in `script.js`, currently set to `demo`.
+- Empty map state until real or saved travel-time data is loaded.
 - A map-style selector for CARTO basemaps and optional MapTiler presets.
 - Optional OpenRouteService isochrones when an API key is pasted into the local page.
 - Optional sample-route fetching from random points inside isochrone bands as a proof of concept.
@@ -62,8 +60,6 @@ It currently uses:
 
 If tiles appear scrambled or misaligned, the Leaflet stylesheet is probably blocked by the browser or CDN. The app includes local fallback layout rules in `styles.css`, so refresh the page after pulling the latest files.
 
-The colored circles are placeholders. They are not real travel-time data yet; the next technical step is to replace them with isochrone polygons from a routing provider.
-
 To try real isochrones, create an OpenRouteService API key, paste it into the page, and click **Get real data**. The key is stored only in `sessionStorage` for the current browser session, not committed to the repo.
 
 Turn on **Also fetch sample routes** before fetching real isochrones to sample random destinations inside the bands and draw OpenRouteService routes to them. The sampler keeps a small minimum per band, then gives larger bands more samples by approximate area. This is intentionally API-call-heavy and capped for the prototype.
@@ -78,7 +74,7 @@ Because this is currently a static browser app, pasting a key into the page stor
 
 Fetched overlays can be saved to local browser storage and loaded later without calling the API again.
 
-Hosted OpenRouteService currently limits driving isochrones to 1 hour. Larger demo bands can be previewed locally, and larger real driving maps will need another provider or a self-hosted routing setup.
+Hosted OpenRouteService currently limits driving isochrones to 1 hour. Larger real driving maps will need another provider or a self-hosted routing setup.
 
 Use **Prepare export** to show the blue export frame, adjust it, then use **Export SVG** to download the selected rectangle. The export embeds visible map tiles when the tile provider allows browser embedding, which makes the SVG easier to open in design tools such as Illustrator.
 
