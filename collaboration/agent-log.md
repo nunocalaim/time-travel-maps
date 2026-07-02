@@ -948,3 +948,19 @@ Decision:
 
 Tried:
 - Replaced the static `config.local.js` script tag with an optional loader.
+
+## 2026-07-02 - Friendlier API failure messages
+
+Participants:
+- Human: Nuno
+- AI: Codex
+
+Goal:
+- Make hosted-page API failures understandable to testers.
+
+Decision:
+- Translate browser-level fetch failures into human-readable status text.
+- Give specific messages for invalid keys, rate limits, and temporary provider outages.
+
+Tried:
+- Added OpenRouteService HTTP and network error formatters.

@@ -566,7 +566,7 @@ async function refreshTravelTimeOverlay(lat, lng) {
     overlayLayer.clearLayers();
     routeLayer.clearLayers();
     updateOverlayToolsVisibility();
-    setStatus(`${error.message} No travel-time data was loaded.`);
+    setStatus(`${getReadableOpenRouteServiceError(error)} No travel-time data was loaded.`);
   }
 }
 
@@ -608,7 +608,7 @@ async function getOpenRouteServiceOverlay(request) {
   });
 
   if (!response.ok) {
-    throw new Error(`OpenRouteService returned ${response.status}.`);
+    throw new Error(await getOpenRouteServiceHttpError(response));
   }
 
   const geojson = await response.json();
@@ -631,6 +631,42 @@ async function getOpenRouteServiceOverlay(request) {
     routes: routeResult.routes,
     routeSummary: routeResult.summary,
   };
+}
+
+async function getOpenRouteServiceHttpError(response) {
+  const detail = await readResponseErrorDetail(response);
+
+  if (response.status === 401 || response.status === 403) {
+    return "OpenRouteService rejected the API key. Check that the key is correct and active.";
+  }
+
+  if (response.status === 429) {
+    return "OpenRouteService rate limit reached. Wait a bit or use a different key.";
+  }
+
+  if (response.status >= 500) {
+    return "OpenRouteService is temporarily unavailable.";
+  }
+
+  return `OpenRouteService returned ${response.status}${detail ? `: ${detail}` : ""}.`;
+}
+
+async function readResponseErrorDetail(response) {
+  try {
+    const body = await response.json();
+
+    return body.error?.message || body.message || "";
+  } catch (error) {
+    return "";
+  }
+}
+
+function getReadableOpenRouteServiceError(error) {
+  if (error instanceof TypeError || /NetworkError|Failed to fetch|Load failed/i.test(error.message || "")) {
+    return "Could not reach OpenRouteService. Check your internet connection, browser privacy/ad-blocking settings, and that the API is reachable from this page.";
+  }
+
+  return error.message || "OpenRouteService request failed.";
 }
 
 async function getOpenRouteServiceSampleRoutes({ apiKey, profile, origin, geojson }) {
