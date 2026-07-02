@@ -326,6 +326,17 @@ input[type="password"] {
   font-weight: 650;
 }
 
+.helper-link {
+  color: var(--accent-strong);
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.helper-link:hover {
+  text-decoration: underline;
+}
+
 .is-hidden {
   display: none;
 }
@@ -406,23 +417,22 @@ fieldset label:has(input:disabled) {
   font-size: 1rem;
 }
 
-.metadata-panel {
-  padding: 10px;
-  border-radius: 8px;
-  color: var(--muted);
-  background: #eef3f6;
-  font-size: 0.82rem;
-  font-weight: 650;
-  line-height: 1.35;
-}
-
 .overlay-tools {
   display: grid;
-  gap: 22px;
+  gap: 12px;
 }
 
 .overlay-tools.is-hidden {
   display: none;
+}
+
+.style-controls .select-control,
+.style-controls .range-control,
+.export-controls .select-control,
+.export-controls .range-control {
+  display: grid;
+  gap: 8px;
+  align-items: stretch;
 }
 
 .legend {

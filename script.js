@@ -62,6 +62,7 @@ const overlayPalettes = {
 const ORS_ENDPOINT = "https://api.openrouteservice.org/v2/isochrones";
 const ORS_DIRECTIONS_ENDPOINT = "https://api.openrouteservice.org/v2/directions";
 const ORS_KEY_STORAGE = "time-to-x:ors-api-key";
+const MAPTILER_KEY_STORAGE = "isochrones:maptiler-api-key";
 const LAST_ORIGIN_STORAGE = "isochrones:last-origin";
 const SAVED_OVERLAYS_STORAGE = "isochrones:saved-overlays";
 const MAPTILER_KEY_HELP_URL = "https://cloud.maptiler.com/account/keys/";
@@ -112,16 +113,18 @@ const mapStyles = {
 
 const toggleSidebarButton = document.querySelector("#toggle-sidebar");
 const orsApiKeyInput = document.querySelector("#ors-api-key");
+const mapTilerApiKeyInput = document.querySelector("#maptiler-api-key");
 const fetchRealDataButton = document.querySelector("#fetch-real-data");
+const includeTravelBandsInput = document.querySelector("#include-travel-bands");
 const includeSampleRoutesInput = document.querySelector("#include-sample-routes");
 const saveOverlayButton = document.querySelector("#save-overlay");
-const clearApiKeyButton = document.querySelector("#clear-api-key");
 const savedOverlaysSelect = document.querySelector("#saved-overlays");
 const loadOverlayButton = document.querySelector("#load-overlay");
 const renameOverlayButton = document.querySelector("#rename-overlay");
 const duplicateOverlayButton = document.querySelector("#duplicate-overlay");
 const deleteOverlayButton = document.querySelector("#delete-overlay");
-const overlayMetadata = document.querySelector("#overlay-metadata");
+const clearRoutesButton = document.querySelector("#clear-routes");
+const clearOverlaysButton = document.querySelector("#clear-overlays");
 const overlayTools = document.querySelector("#overlay-tools");
 const mapStyleSelect = document.querySelector("#map-style");
 const overlayPaletteSelect = document.querySelector("#overlay-palette");
@@ -176,6 +179,7 @@ let savedExportFrameBounds = null;
 let isManualRouteRequestInFlight = false;
 
 orsApiKeyInput.value = getStoredOpenRouteServiceApiKey();
+mapTilerApiKeyInput.value = getStoredMapTilerApiKey();
 updateLegendPalette();
 refreshSavedOverlayList();
 if (initialSavedOverlay) {
@@ -343,16 +347,35 @@ orsApiKeyInput.addEventListener("change", async () => {
 
   if (key) {
     sessionStorage.setItem(ORS_KEY_STORAGE, key);
-    setStatus("API key saved for this browser session. Click Get real data when ready.");
+    setStatus("OpenRouteService key saved for this browser session. Click Get real data when ready.");
   } else {
     sessionStorage.removeItem(ORS_KEY_STORAGE);
-    setStatus("API key cleared from this browser session.");
+    setStatus("OpenRouteService key cleared from this browser session.");
   }
+});
+
+mapTilerApiKeyInput.addEventListener("change", () => {
+  const key = mapTilerApiKeyInput.value.trim();
+
+  if (key) {
+    sessionStorage.setItem(MAPTILER_KEY_STORAGE, key);
+    setStatus("MapTiler key saved for this browser session.");
+  } else {
+    sessionStorage.removeItem(MAPTILER_KEY_STORAGE);
+    setStatus("MapTiler key cleared from this browser session.");
+  }
+
+  setBaseMapStyle(mapStyleSelect.value, { silent: true });
 });
 
 fetchRealDataButton.addEventListener("click", async () => {
   if (!getOpenRouteServiceApiKey()) {
     setStatus("Paste an OpenRouteService API key first.");
+    return;
+  }
+
+  if (!includeTravelBandsInput.checked && !includeSampleRoutesInput.checked) {
+    setStatus("Choose travel-time bands, sample routes, or both before requesting data.");
     return;
   }
 
@@ -391,11 +414,12 @@ savedOverlaysSelect.addEventListener("change", () => {
   refreshOverlayMetadata();
 });
 
-clearApiKeyButton.addEventListener("click", async () => {
-  invalidateRealData();
-  orsApiKeyInput.value = "";
-  sessionStorage.removeItem(ORS_KEY_STORAGE);
-  setStatus("API key cleared from this browser session.");
+clearRoutesButton.addEventListener("click", () => {
+  clearCurrentRoutes();
+});
+
+clearOverlaysButton.addEventListener("click", () => {
+  clearCurrentMapOverlays();
 });
 
 async function geocode(query) {
@@ -517,6 +541,7 @@ async function refreshTravelTimeOverlay(lat, lng) {
       minutes,
       requestedMinutes,
       provider,
+      includeBands: includeTravelBandsInput.checked,
       includeRoutes: provider === "openrouteservice" && includeSampleRoutesInput.checked,
     });
 
@@ -597,6 +622,7 @@ async function getOpenRouteServiceOverlay(request) {
     provider: "openrouteservice",
     type: "geojson",
     requestedMinutes: request.requestedMinutes,
+    showBands: request.includeBands !== false,
     geojson: styledGeojson,
     routes: routeResult.routes,
     routeSummary: routeResult.summary,
@@ -946,6 +972,7 @@ function getDemoOverlay(request) {
     traffic: request.traffic,
     minutes: request.minutes,
     requestedMinutes: request.requestedMinutes || request.minutes,
+    showBands: request.includeBands !== false,
   };
 }
 
@@ -1069,6 +1096,8 @@ function loadOverlay(overlay, options = {}) {
   currentOrigin = overlay.origin;
   currentOverlayResult = overlay.result;
   maxTimeSelect.value = String(overlay.maxMinutes);
+  includeTravelBandsInput.checked = overlay.result?.showBands !== false;
+  includeSampleRoutesInput.checked = Boolean(overlay.result?.routes?.length);
   const modeControl = document.querySelector(`input[name="travel-mode"][value="${overlay.mode}"]`);
   const trafficControl = document.querySelector(`input[name="traffic-mode"][value="${overlay.traffic}"]`);
 
@@ -1161,34 +1190,32 @@ function deleteSelectedOverlay() {
   setStatus("Saved overlay deleted.");
 }
 
+function clearCurrentRoutes() {
+  routeLayer.clearLayers();
+
+  if (currentOverlayResult?.routes?.length) {
+    currentOverlayResult = {
+      ...currentOverlayResult,
+      routes: [],
+      routeSummary: null,
+      manualRouteCount: 0,
+    };
+  }
+
+  setStatus("Routes cleared from the map.");
+}
+
+function clearCurrentMapOverlays() {
+  currentOverlayResult = null;
+  overlayLayer.clearLayers();
+  routeLayer.clearLayers();
+  updateOverlayToolsVisibility();
+  exitExportMode();
+  setStatus("Map overlays cleared.");
+}
+
 function refreshOverlayMetadata() {
-  const overlay = getSavedOverlays().find((item) => item.id === savedOverlaysSelect.value);
-
-  overlayMetadata.textContent = overlay ? formatOverlayMetadata(overlay) : "No saved overlay selected.";
-}
-
-function formatOverlayMetadata(overlay) {
-  const generated = overlay.createdAt ? new Date(overlay.createdAt).toLocaleString() : "Unknown date";
-  const provider = overlay.result?.provider || "unknown";
-  const bands = getOverlayTimeBands(overlay).join(", ");
-  const routes = overlay.result?.routes?.length || 0;
-  const routeSummary = overlay.result?.routeSummary
-    ? ` (${overlay.result.routeSummary.succeeded}/${overlay.result.routeSummary.attempted} succeeded)`
-    : "";
-
-  return `Origin: ${overlay.origin?.label || "Unknown"} | Mode: ${overlay.mode || "unknown"} | Bands: ${bands} min | Provider: ${provider} | Routes: ${routes}${routeSummary} | Generated: ${generated}`;
-}
-
-function getOverlayTimeBands(overlay) {
-  if (overlay.result?.requestedMinutes?.length) {
-    return overlay.result.requestedMinutes;
-  }
-
-  if (overlay.result?.minutes?.length) {
-    return overlay.result.minutes;
-  }
-
-  return getSelectedTimeBands();
+  // Saved overlay details are intentionally kept out of the compact tester UI.
 }
 
 function getCurrentCompositionSettings() {
@@ -1267,7 +1294,7 @@ function deserializeBounds(bounds) {
 
 function renderTravelTimeOverlay(result) {
   if (result.type === "concentric-rings") {
-    drawDemoBands(result.origin.lat, result.origin.lng, result.mode, result.minutes);
+    drawDemoBands(result.origin.lat, result.origin.lng, result.mode, result.minutes, result.showBands !== false);
     return;
   }
 
@@ -1313,21 +1340,23 @@ function drawGeoJsonBands(geojson) {
 
   const sortedFeatures = createBandedIsochroneFeatures(geojson.features || []);
 
-  L.geoJSON({ ...geojson, features: sortedFeatures }, {
-    style: (feature) => {
-      const properties = feature.properties || {};
-      const minutes = properties.minutes || getIsochroneMinutes(feature);
-      const color = getBandColor(minutes);
+  if (currentOverlayResult?.showBands !== false) {
+    L.geoJSON({ ...geojson, features: sortedFeatures }, {
+      style: (feature) => {
+        const properties = feature.properties || {};
+        const minutes = properties.minutes || getIsochroneMinutes(feature);
+        const color = getBandColor(minutes);
 
-      return {
-        color,
-        fillColor: color,
-        fillOpacity: getOverlayOpacity(),
-        opacity: properties.opacity || 0.85,
-        weight: 2,
-      };
-    },
-  }).addTo(overlayLayer);
+        return {
+          color,
+          fillColor: color,
+          fillOpacity: getOverlayOpacity(),
+          opacity: properties.opacity || 0.85,
+          weight: 2,
+        };
+      },
+    }).addTo(overlayLayer);
+  }
 
   if (currentOverlayResult?.routes?.length) {
     drawSampleRoutes(currentOverlayResult.routes);
@@ -1635,9 +1664,13 @@ function getIsochroneMinutes(feature) {
   return Math.round(seconds / 60);
 }
 
-function drawDemoBands(lat, lng, mode, minutes = [1, 5, 10, 15, 20, 30, 45, 60]) {
+function drawDemoBands(lat, lng, mode, minutes = [1, 5, 10, 15, 20, 30, 45, 60], showBands = true) {
   overlayLayer.clearLayers();
   routeLayer.clearLayers();
+
+  if (!showBands) {
+    return;
+  }
 
   const minutesToMeters = mode === "walk" ? 80 : 850;
   const bands = [...minutes].sort((a, b) => a - b);
@@ -1782,7 +1815,9 @@ function getProviderTimeBands(provider, mode, requestedMinutes) {
 }
 
 function fitMapToOverlay() {
-  const bounds = overlayLayer.getBounds();
+  const overlayBounds = overlayLayer.getBounds();
+  const routeBounds = routeLayer.getBounds();
+  const bounds = overlayBounds.isValid() ? overlayBounds : routeBounds;
 
   if (bounds.isValid()) {
     map.fitBounds(bounds, {
@@ -1812,7 +1847,11 @@ function getStoredOpenRouteServiceApiKey() {
 }
 
 function getMapTilerApiKey() {
-  return localConfig.mapTilerApiKey || "";
+  return mapTilerApiKeyInput.value.trim() || getStoredMapTilerApiKey();
+}
+
+function getStoredMapTilerApiKey() {
+  return localConfig.mapTilerApiKey || sessionStorage.getItem(MAPTILER_KEY_STORAGE) || "";
 }
 
 function canUseMapStyle(style) {
@@ -2191,7 +2230,7 @@ function createSvgLeafletOverlayLayer(crop) {
 }
 
 function createSvgIsochroneOverlayLayer(crop) {
-  if (!currentOverlayResult || currentOverlayResult.type !== "geojson") {
+  if (!currentOverlayResult || currentOverlayResult.type !== "geojson" || currentOverlayResult.showBands === false) {
     return "";
   }
 

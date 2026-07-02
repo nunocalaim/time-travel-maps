@@ -42,6 +42,7 @@ It currently uses:
 - A map-style selector for CARTO basemaps and optional MapTiler presets.
 - Optional OpenRouteService isochrones when an API key is pasted into the local page.
 - Optional sample-route fetching from random points inside isochrone bands as a proof of concept.
+- Separate display toggles for travel-time bands and sample routes.
 - Turf.js-powered route segment coloring on the `polygon-library` experiment branch.
 - Route coloring modes for smoothed band color, raw band color, outbound monotone, and destination color.
 - Adjustable route/path thickness and transparency for route overlays.
@@ -57,6 +58,7 @@ It currently uses:
 - Overlay palette presets for classic, warm, blue-green, and grayscale maps.
 - Last starting location persistence.
 - Local save/load, rename, and duplicate for fetched OpenRouteService overlays.
+- Buttons to clear route paths or clear the current map overlays.
 
 If tiles appear scrambled or misaligned, the Leaflet stylesheet is probably blocked by the browser or CDN. The app includes local fallback layout rules in `styles.css`, so refresh the page after pulling the latest files.
 

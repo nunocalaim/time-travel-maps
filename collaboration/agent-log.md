@@ -857,3 +857,26 @@ Tried:
 Next:
 - Evaluate which MapTiler styles best support semi-transparent isochrone overlays.
 - Later, consider MapLibre style JSON import for exact layer-level map customization.
+
+## 2026-07-02 - Tester sidebar cleanup
+
+Participants:
+- Human: Nuno
+- AI: Codex
+
+Goal:
+- Simplify the sidebar before sharing the prototype with test users.
+
+Decisions:
+- Remove redundant project copy and keep "Travel-time maps" as the visible title.
+- Rename the data section to "Fetch travel-time data".
+- Disable typical traffic for now because it will need a departure-time model.
+- Show OpenRouteService and MapTiler key fields together, with helper links.
+- Default both travel-time bands and sample routes on, while allowing either display to be cleared or hidden.
+- Remove the noisy saved-overlay metadata panel from the visible UI.
+- Group map/overlay styling controls together.
+
+Tried:
+- Added clear-routes and clear-map-overlays buttons.
+- Added a MapTiler API key input stored in session storage or ignored local config.
+- Added a travel-time band display toggle while still keeping isochrones available for route sampling/coloring.

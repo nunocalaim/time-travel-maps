@@ -19,16 +19,11 @@
       <button id="toggle-sidebar" class="sidebar-toggle" type="button" aria-label="Expand controls" aria-expanded="false">☰</button>
       <section class="control-panel" aria-label="Map controls">
         <div class="project-summary">
-          <p class="eyebrow">Isochrones</p>
           <h1>Travel-time maps</h1>
-          <p class="intro">
-            Choose a place and preview color-coded reachability bands. Use demo rings, or paste
-            an OpenRouteService key to request real isochrone polygons.
-          </p>
         </div>
 
         <fieldset class="creation-controls">
-          <legend>Create overlay</legend>
+          <legend>Fetch travel-time data</legend>
           <div class="origin-panel">
             <h2>Starting point</h2>
             <p>Right-click the map to define a starting point, or use your current location.</p>
@@ -56,7 +51,7 @@
               No traffic
             </label>
             <label>
-              <input type="radio" name="traffic-mode" value="typical">
+              <input type="radio" name="traffic-mode" value="typical" disabled>
               Typical traffic
             </label>
             <label>
@@ -66,27 +61,43 @@
           </div>
 
           <div class="api-controls">
-            <h2>Real data</h2>
-            <label for="ors-api-key">OpenRouteService API key</label>
+            <h2>API keys</h2>
+            <label for="ors-api-key">OpenRouteService API key (required)</label>
             <input
               id="ors-api-key"
               name="ors-api-key"
               type="password"
-              placeholder="Paste key for real isochrones"
+              placeholder="Required for real travel-time data"
               autocomplete="off"
             >
+            <a class="helper-link" href="https://openrouteservice.org/dev/#/signup" target="_blank" rel="noreferrer">How to get an OpenRouteService key</a>
+            <label for="maptiler-api-key">MapTiler API key (optional)</label>
+            <input
+              id="maptiler-api-key"
+              name="maptiler-api-key"
+              type="password"
+              placeholder="Optional, for MapTiler map styles"
+              autocomplete="off"
+            >
+            <a class="helper-link" href="https://cloud.maptiler.com/account/keys/" target="_blank" rel="noreferrer">How to get a MapTiler key</a>
+          </div>
+
+          <div class="radio-group">
+            <h2>Display</h2>
             <label>
-              <input id="include-sample-routes" name="include-sample-routes" type="checkbox">
-              Also fetch sample routes
+              <input id="include-travel-bands" name="include-travel-bands" type="checkbox" checked>
+              Travel-time bands
+            </label>
+            <label>
+              <input id="include-sample-routes" name="include-sample-routes" type="checkbox" checked>
+              Sample routes
             </label>
             <button id="fetch-real-data" type="button">Get real data</button>
-            <button id="clear-api-key" class="secondary-button" type="button">Clear key</button>
           </div>
         </fieldset>
 
         <fieldset class="overlay-library">
-          <legend>Overlays</legend>
-          <button id="save-overlay" class="secondary-button" type="button">Save current overlay</button>
+          <legend>Saved maps</legend>
           <label for="saved-overlays">Local overlays</label>
           <select id="saved-overlays" name="saved-overlays">
             <option value="">No saved overlays</option>
@@ -95,83 +106,91 @@
           <button id="rename-overlay" class="secondary-button" type="button">Rename overlay</button>
           <button id="duplicate-overlay" class="secondary-button" type="button">Duplicate overlay</button>
           <button id="delete-overlay" class="secondary-button" type="button">Delete overlay</button>
-          <div id="overlay-metadata" class="metadata-panel">No saved overlay selected.</div>
+          <button id="clear-routes" class="secondary-button" type="button">Clear routes</button>
+          <button id="clear-overlays" class="secondary-button" type="button">Clear map overlays</button>
         </fieldset>
 
         <div id="overlay-tools" class="overlay-tools is-hidden">
-          <label class="select-control" for="map-style">
-            Map style
-            <select id="map-style" name="map-style">
-              <option value="voyager" selected>Detailed</option>
-              <option value="light">Light print</option>
-              <option value="dark">Dark</option>
-              <option value="maptilerDatavizLight">MapTiler Dataviz light</option>
-              <option value="maptilerBackdrop">MapTiler Backdrop</option>
-              <option value="maptilerBasic">MapTiler Basic</option>
-              <option value="maptilerBright">MapTiler Bright</option>
-            </select>
-          </label>
+          <fieldset class="style-controls">
+            <legend>Style map and overlays</legend>
+            <label class="select-control" for="map-style">
+              Map style
+              <select id="map-style" name="map-style">
+                <option value="voyager" selected>Detailed</option>
+                <option value="light">Light print</option>
+                <option value="dark">Dark</option>
+                <option value="maptilerDatavizLight">MapTiler Dataviz light</option>
+                <option value="maptilerBackdrop">MapTiler Backdrop</option>
+                <option value="maptilerBasic">MapTiler Basic</option>
+                <option value="maptilerBright">MapTiler Bright</option>
+              </select>
+            </label>
 
-          <label class="select-control" for="overlay-palette">
-            Overlay palette
-            <select id="overlay-palette" name="overlay-palette">
-              <option value="classic" selected>Classic</option>
-              <option value="warm">Warm</option>
-              <option value="bluegreen">Blue-green</option>
-              <option value="grayscale">Grayscale</option>
-            </select>
-          </label>
+            <label class="select-control" for="overlay-palette">
+              Overlay palette
+              <select id="overlay-palette" name="overlay-palette">
+                <option value="classic" selected>Classic</option>
+                <option value="warm">Warm</option>
+                <option value="bluegreen">Blue-green</option>
+                <option value="grayscale">Grayscale</option>
+              </select>
+            </label>
 
-          <label class="select-control" for="route-coloring">
-            Route coloring
-            <select id="route-coloring" name="route-coloring">
-              <option value="smoothed" selected>Smoothed band color</option>
-              <option value="raw">Raw band color</option>
-              <option value="monotone">Outbound monotone</option>
-              <option value="destination">Destination color</option>
-            </select>
-          </label>
+            <label class="range-control" for="overlay-opacity">
+              Overlay transparency
+              <input
+                id="overlay-opacity"
+                name="overlay-opacity"
+                type="range"
+                min="10"
+                max="70"
+                value="28"
+              >
+            </label>
 
-          <label class="checkbox-control">
-            <input id="manual-route-mode" name="manual-route-mode" type="checkbox">
-            Click map to add routes
-          </label>
+            <label class="select-control" for="route-coloring">
+              Route coloring
+              <select id="route-coloring" name="route-coloring">
+                <option value="smoothed" selected>Smoothed band color</option>
+                <option value="raw">Raw band color</option>
+                <option value="monotone">Outbound monotone</option>
+                <option value="destination">Destination color</option>
+              </select>
+            </label>
 
-          <label class="range-control" for="route-thickness">
-            Path thickness
-            <input
-              id="route-thickness"
-              name="route-thickness"
-              type="range"
-              min="2"
-              max="18"
-              value="10"
-            >
-          </label>
+            <label class="range-control" for="route-thickness">
+              Path thickness
+              <input
+                id="route-thickness"
+                name="route-thickness"
+                type="range"
+                min="2"
+                max="18"
+                value="10"
+              >
+            </label>
 
-          <label class="range-control" for="route-opacity">
-            Path transparency
-            <input
-              id="route-opacity"
-              name="route-opacity"
-              type="range"
-              min="15"
-              max="100"
-              value="88"
-            >
-          </label>
+            <label class="range-control" for="route-opacity">
+              Path transparency
+              <input
+                id="route-opacity"
+                name="route-opacity"
+                type="range"
+                min="15"
+                max="100"
+                value="88"
+              >
+            </label>
 
-          <label class="range-control" for="overlay-opacity">
-            Overlay transparency
-            <input
-              id="overlay-opacity"
-              name="overlay-opacity"
-              type="range"
-              min="10"
-              max="70"
-              value="28"
-            >
-          </label>
+            <label class="checkbox-control">
+              <input id="manual-route-mode" name="manual-route-mode" type="checkbox">
+              Click map to add routes
+            </label>
+          </fieldset>
+
+          <fieldset class="export-controls">
+            <legend>Export</legend>
+            <button id="save-overlay" class="secondary-button" type="button">Save current overlay</button>
 
           <label class="select-control" for="export-quality">
             SVG export quality
@@ -221,6 +240,7 @@
           <button id="export-selection" class="is-hidden" type="button">Export SVG</button>
           <button id="reset-export-frame" class="secondary-button is-hidden" type="button">Reset export frame</button>
           <button id="cancel-export" class="secondary-button is-hidden" type="button">Cancel export</button>
+          </fieldset>
 
           <div class="legend" aria-label="Travel time legend">
             <h2>Travel-time bands</h2>
@@ -236,7 +256,7 @@
         </div>
 
         <p id="status" class="status" role="status">Showing a demo map centered on Coimbra.</p>
-        <p class="hint">Right-click the map to set a starting point. Prepare export to choose a PDF area.</p>
+        <p class="hint">Right-click the map to set a starting point.</p>
         <p class="attribution">
           © openrouteservice.org by HeiGIT | Map data © OpenStreetMap contributors
         </p>
