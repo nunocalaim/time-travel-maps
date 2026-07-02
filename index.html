@@ -282,8 +282,32 @@
       integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
       crossorigin=""
     ></script>
-    <script src="config.local.js"></script>
     <script src="https://unpkg.com/@turf/turf@7/turf.min.js"></script>
-    <script src="script.js"></script>
+    <script>
+      if (isLocalConfigAvailable()) {
+        const configScript = document.createElement("script");
+
+        configScript.src = "config.local.js";
+        configScript.onload = loadAppScript;
+        configScript.onerror = loadAppScript;
+        document.head.append(configScript);
+      } else {
+        loadAppScript();
+      }
+
+      function loadAppScript() {
+        const appScript = document.createElement("script");
+
+        appScript.src = "script.js";
+        document.body.append(appScript);
+      }
+
+      function isLocalConfigAvailable() {
+        return location.protocol === "file:"
+          || location.hostname === "localhost"
+          || location.hostname === "127.0.0.1"
+          || location.hostname === "::1";
+      }
+    </script>
   </body>
 </html>

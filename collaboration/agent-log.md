@@ -932,3 +932,19 @@ Decisions:
 
 Tried:
 - Added a native dialog with API-specific explanatory text and registration links.
+
+## 2026-07-02 - Optional local config on GitHub Pages
+
+Participants:
+- Human: Nuno
+- AI: Codex
+
+Goal:
+- Avoid a visible script-load error on GitHub Pages when ignored `config.local.js` is absent.
+
+Decision:
+- Load `config.local.js` only for local/file URLs.
+- Load the main app script only after the optional config load succeeds or fails.
+
+Tried:
+- Replaced the static `config.local.js` script tag with an optional loader.
