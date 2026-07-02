@@ -880,3 +880,19 @@ Tried:
 - Added clear-routes and clear-map-overlays buttons.
 - Added a MapTiler API key input stored in session storage or ignored local config.
 - Added a travel-time band display toggle while still keeping isochrones available for route sampling/coloring.
+
+## 2026-07-02 - Increase palette visibility
+
+Participants:
+- Human: Nuno
+- AI: Codex
+
+Goal:
+- Make non-classic overlay palettes readable over light basemaps, especially the farthest bands.
+
+Decision:
+- Remove near-white endpoints from the warm, blue-green, and grayscale palettes.
+- Keep each palette saturated enough that 45 and 60 minute bands remain visible with semi-transparent fills.
+
+Tried:
+- Darkened the far-band colors in warm, blue-green, and grayscale palettes.
