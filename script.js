@@ -71,8 +71,10 @@ const ZOOM_CLOSER_DELTA = Math.log2(1.45);
 const EXPORT_MAX_PAGE_WIDTH = 1056;
 const EXPORT_MAX_PAGE_HEIGHT = 816;
 const FETCH_REAL_DATA_LABEL = "Get real data";
-const MAX_SAMPLE_ROUTES = 72;
+const MAX_SAMPLE_ROUTES = 36;
 const MIN_ROUTE_SAMPLES_PER_BAND = 2;
+const ROUTE_REQUEST_DELAY_MS = 450;
+const ROUTE_RATE_LIMIT_RETRIES = 3;
 
 const mapStyles = {
   voyager: {
@@ -674,22 +676,31 @@ async function getOpenRouteServiceSampleRoutes({ apiKey, profile, origin, geojso
   const routes = [];
   const failuresByBand = {};
   const attemptsByBand = {};
+  let rateLimited = 0;
 
   for (let index = 0; index < destinations.length; index += 1) {
     const destination = destinations[index];
 
+    if (index > 0) {
+      await wait(ROUTE_REQUEST_DELAY_MS);
+    }
+
     attemptsByBand[destination.minutes] = (attemptsByBand[destination.minutes] || 0) + 1;
     setStatus(`Fetching sample route ${index + 1} of ${destinations.length} (${destination.minutes} min band)...`);
-    const route = await getOpenRouteServiceRoute({
+    const routeResult = await getOpenRouteServiceRouteResult({
       apiKey,
       profile,
       origin,
       destination,
     });
 
-    if (route) {
-      routes.push(route);
+    if (routeResult.route) {
+      routes.push(routeResult.route);
     } else {
+      if (routeResult.rateLimited) {
+        rateLimited += 1;
+      }
+
       failuresByBand[destination.minutes] = (failuresByBand[destination.minutes] || 0) + 1;
     }
   }
@@ -700,6 +711,7 @@ async function getOpenRouteServiceSampleRoutes({ apiKey, profile, origin, geojso
       attempted: destinations.length,
       succeeded: routes.length,
       failed: destinations.length - routes.length,
+      rateLimited,
       attemptsByBand,
       failuresByBand,
     },
@@ -735,7 +747,7 @@ async function addManualRoute(latlng) {
 
   const origin = originMarker.getLatLng();
   const mode = document.querySelector('input[name="travel-mode"]:checked').value;
-  const route = await getOpenRouteServiceRoute({
+  const routeResult = await getOpenRouteServiceRouteResult({
     apiKey,
     profile: getOpenRouteServiceProfile(mode),
     origin: [origin.lng, origin.lat],
@@ -749,10 +761,14 @@ async function addManualRoute(latlng) {
   isManualRouteRequestInFlight = false;
   updateManualRouteModeState();
 
-  if (!route) {
-    setStatus("OpenRouteService could not route to that point.");
+  if (!routeResult.route) {
+    setStatus(routeResult.rateLimited
+      ? "OpenRouteService rate limited that route request. Wait a moment and try again."
+      : "OpenRouteService could not route to that point.");
     return;
   }
+
+  const route = routeResult.route;
 
   route.source = "manual";
   currentOverlayResult.routes = [
@@ -764,36 +780,76 @@ async function addManualRoute(latlng) {
   setStatus(`Added picked route (${Math.round(getRouteDurationSeconds(route) / 60)} min).`);
 }
 
-async function getOpenRouteServiceRoute({ apiKey, profile, origin, destination }) {
+async function getOpenRouteServiceRouteResult({ apiKey, profile, origin, destination }) {
   try {
-    const response = await fetch(`${ORS_DIRECTIONS_ENDPOINT}/${profile}/geojson`, {
-      method: "POST",
-      headers: {
-        Accept: "application/json, application/geo+json",
-        Authorization: apiKey,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        coordinates: [origin, destination.coordinates],
-      }),
-    });
+    const response = await fetchOpenRouteServiceRouteWithBackoff({ apiKey, profile, origin, destination });
 
     if (!response.ok) {
-      return null;
+      return { route: null, rateLimited: response.status === 429 };
     }
 
     const route = await response.json();
     const feature = route.features?.[0];
 
-    return feature ? {
-      bandMinutes: destination.minutes || getDurationBandMinutes(feature.properties?.summary?.duration || 0),
-      destination: destination.coordinates,
-      source: destination.source || "sample",
-      feature,
-    } : null;
+    return {
+      route: feature ? {
+        bandMinutes: destination.minutes || getDurationBandMinutes(feature.properties?.summary?.duration || 0),
+        destination: destination.coordinates,
+        source: destination.source || "sample",
+        feature,
+      } : null,
+      rateLimited: false,
+    };
   } catch (error) {
-    return null;
+    return { route: null, rateLimited: false };
   }
+}
+
+async function fetchOpenRouteServiceRouteWithBackoff({ apiKey, profile, origin, destination }) {
+  for (let attempt = 0; attempt <= ROUTE_RATE_LIMIT_RETRIES; attempt += 1) {
+    const response = await fetchOpenRouteServiceRoute({ apiKey, profile, origin, destination });
+
+    if (response.status !== 429 || attempt === ROUTE_RATE_LIMIT_RETRIES) {
+      return response;
+    }
+
+    const delayMs = getRetryAfterDelayMs(response, attempt);
+
+    setStatus(`OpenRouteService is rate limiting route requests. Retrying in ${Math.round(delayMs / 1000)}s...`);
+    await wait(delayMs);
+  }
+
+  return fetchOpenRouteServiceRoute({ apiKey, profile, origin, destination });
+}
+
+function fetchOpenRouteServiceRoute({ apiKey, profile, origin, destination }) {
+  return fetch(`${ORS_DIRECTIONS_ENDPOINT}/${profile}/geojson`, {
+    method: "POST",
+    headers: {
+      Accept: "application/json, application/geo+json",
+      Authorization: apiKey,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      coordinates: [origin, destination.coordinates],
+    }),
+  });
+}
+
+function getRetryAfterDelayMs(response, attempt) {
+  const retryAfter = Number(response.headers.get("Retry-After"));
+
+  if (Number.isFinite(retryAfter) && retryAfter > 0) {
+    return retryAfter * 1000;
+  }
+
+  return Math.min(16000, 1000 * (2 ** attempt));
+}
+
+function wait(milliseconds) {
+  return new Promise((resolve) => {
+    window.setTimeout(resolve, milliseconds);
+  });
 }
 
 function sampleRouteDestinations(geojson) {
@@ -1911,7 +1967,9 @@ function describeOverlayResult(result, mode, traffic) {
       ? ` and ${result.routes.length} routes`
       : "";
   const failureText = result.routeSummary?.failed
-    ? ` ${result.routeSummary.failed} route requests failed or were rate-limited.`
+    ? result.routeSummary.rateLimited
+      ? ` ${result.routeSummary.failed} route requests failed; ${result.routeSummary.rateLimited} hit rate limits after retries.`
+      : ` ${result.routeSummary.failed} route requests failed.`
     : "";
 
   const requestedMax = Math.max(...(result.requestedMinutes || []));

@@ -63,7 +63,7 @@ If tiles appear scrambled or misaligned, the Leaflet stylesheet is probably bloc
 
 To try real isochrones, create an OpenRouteService API key, paste it into the page, and click **Get real data**. The key is stored only in `sessionStorage` for the current browser session, not committed to the repo.
 
-Turn on **Also fetch sample routes** before fetching real isochrones to sample random destinations inside the bands and draw OpenRouteService routes to them. The sampler keeps a small minimum per band, then gives larger bands more samples by approximate area. This is intentionally API-call-heavy and capped for the prototype.
+Turn on **Sample routes** before fetching real isochrones to sample random destinations inside the bands and draw OpenRouteService routes to them. The sampler keeps a small minimum per band, then gives larger bands more samples by approximate area. This is intentionally API-call-heavy, capped for the prototype, and paced with retries when OpenRouteService rate-limits route requests.
 
 After a real overlay is visible, turn on **Click map to add routes** to manually request and append a route from the current starting point to any clicked map location.
 

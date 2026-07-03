@@ -964,3 +964,21 @@ Decision:
 
 Tried:
 - Added OpenRouteService HTTP and network error formatters.
+
+## 2026-07-02 - Pace sample route requests
+
+Participants:
+- Human: Nuno
+- AI: Codex
+
+Goal:
+- Reduce OpenRouteService 429 responses while still letting testers explore sample routes.
+
+Decisions:
+- Lower the sample-route cap from 72 to 36.
+- Add a short delay between route requests.
+- Retry route requests that receive HTTP 429 with exponential backoff, respecting `Retry-After` when present.
+- Report rate-limited failures separately in the status summary.
+
+Tried:
+- Added route request pacing and 429-specific retries.
